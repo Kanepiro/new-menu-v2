@@ -188,6 +188,31 @@ export default function App() {
   const nextTick = () => new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
 
   function applyCaptureStyles() {
+  const rootEl = (document.getElementById("capture") as HTMLElement) || (document.getElementById("root") as HTMLElement) || (document.body as HTMLElement);
+  // Add a scoped class so we can style only for capture
+  rootEl.classList.add("pdf-capture");
+  // Inject style to nudge baseline for textual elements only (capture-only)
+  const style = document.createElement("style");
+  style.id = "pdf-nudge-style";
+  style.textContent = `
+    .pdf-capture span,
+    .pdf-capture p,
+    .pdf-capture label,
+    .pdf-capture input,
+    .pdf-capture select,
+    .pdf-capture button,
+    .pdf-capture .text-xs,
+    .pdf-capture .text-sm,
+    .pdf-capture .text-base,
+    .pdf-capture .text-lg,
+    .pdf-capture .text-xl,
+    .pdf-capture .text-2xl,
+    .pdf-capture .text-3xl {
+      transform: translateY(-0.5em);
+    }
+  `;
+  document.head.appendChild(style);
+
   const rootEl = (document.getElementById("capture") as HTMLElement) || (document.getElementById("root") as HTMLElement) || document.body as HTMLElement;
   const prevTransform = rootEl.style.transform;
   rootEl.style.transform = (prevTransform ? prevTransform + " " : "") + "translateY(-0.5em)";
@@ -212,6 +237,8 @@ export default function App() {
     const prevPos = ft ? ft.style.position : null;
     if (ft) ft.style.position = 'static';
     return () => {
+    try { rootEl.classList.remove("pdf-capture"); const st = document.getElementById("pdf-nudge-style"); if (st && st.parentNode) st.parentNode.removeChild(st); } catch {}
+
     if (rootEl) { rootEl.style.transform = prevTransform || ""; }
 
       if (ft) ft.style.position = prevPos || '';
