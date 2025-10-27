@@ -189,12 +189,10 @@ export default function App() {
 
   function applyCaptureStyles() {
   const rootEl = (document.getElementById("capture") as HTMLElement) || (document.getElementById("root") as HTMLElement) || (document.body as HTMLElement);
-  // Add a scoped class so we can style only for capture
-  rootEl.classList.add("pdf-capture");
-  // Inject style to nudge baseline for textual elements only (capture-only)
-  const style = document.createElement("style");
-  style.id = "pdf-nudge-style";
-  style.textContent = `
+  // --- Capture-only: text baseline nudge (scope-limited) ---
+  const nudgeStyle = document.createElement('style');
+  nudgeStyle.id = 'pdf-nudge-style';
+  nudgeStyle.textContent = `
     .pdf-capture span,
     .pdf-capture p,
     .pdf-capture label,
@@ -207,19 +205,15 @@ export default function App() {
     .pdf-capture .text-lg,
     .pdf-capture .text-xl,
     .pdf-capture .text-2xl,
-    .pdf-capture .text-3xl {
-      transform: translateY(-0.5em);
-    }
+    .pdf-capture .text-3xl { transform: translateY(-0.5em); }
   `;
-  document.head.appendChild(style);
+  document.head.appendChild(nudgeStyle);
+  rootEl.classList.add('pdf-capture');
 
-  const rootEl = (document.getElementById("capture") as HTMLElement) || (document.getElementById("root") as HTMLElement) || document.body as HTMLElement;
-  const prevTransform = rootEl.style.transform;
-  rootEl.style.transform = (prevTransform ? prevTransform + " " : "") + "translateY(-0.5em)";
-
-    const style = document.createElement('style');
-    style.id = '__capture_styles__';
-    style.textContent = `
+  // --- Existing capture base styles ---
+  const capStyle = document.createElement('style');
+  capStyle.id = '__capture_styles__';
+  capStyle.textContent = `
       html, body { -webkit-text-size-adjust: 100%; }
       * { font-synthesis: none; }
       /* neutralize fixed to avoid vertical misalignment */
@@ -231,13 +225,24 @@ export default function App() {
       [data-capture-root] [data-empty="true"] { display: none !important; }
       [data-capture-root] [data-capture-hide] { display: none !important; }
     `;
-    document.head.appendChild(style);
-    // Also force footer to static if exists
-    const ft = document.querySelector('footer') as HTMLElement | null;
-    const prevPos = ft ? ft.style.position : null;
-    if (ft) ft.style.position = 'static';
-    return () => {
-    try { rootEl.classList.remove("pdf-capture"); const st = document.getElementById("pdf-nudge-style"); if (st && st.parentNode) st.parentNode.removeChild(st); } catch {}
+  document.head.appendChild(capStyle);
+
+  // footer static patch
+  const ft = document.querySelector('footer') as HTMLElement | null;
+  const prevPos = ft ? ft.style.position : null;
+  if (ft) ft.style.position = 'static';
+
+  return () => {
+    // cleanup styles and class
+    try {
+      rootEl.classList.remove('pdf-capture');
+      const st1 = document.getElementById('pdf-nudge-style'); if (st1 && st1.parentNode) st1.parentNode.removeChild(st1);
+      const st2 = document.getElementById('__capture_styles__'); if (st2 && st2.parentNode) st2.parentNode.removeChild(st2);
+      if (ft) ft.style.position = prevPos || '';
+    } catch { }
+  };
+}
+}
 
     if (rootEl) { rootEl.style.transform = prevTransform || ""; }
 
