@@ -1,8 +1,11 @@
 import React, { useEffect, useMemo, useState } from "react";
 import type { Group, MenuItem } from "./menuOptions";
 import { MENU_ITEMS_DEFAULT, byGroup, groupsOf } from "./menuOptions";
+// ---- Numeric helpers ----
+const toInt = (n: number) => Math.round(Number(n) || 0);
+
 // ---- Versioning ----
-const FIXED_VERSION_TEXT = "v2.1.038";
+const FIXED_VERSION_TEXT = "v2.1.035";
 const VERSION_PREFIX = "2.1"; // major.minor
 const STORAGE_VERSION_PATCH = "menu.version.patch";
 function loadVersionPatch(): number {
@@ -44,7 +47,8 @@ function Dropdown<T extends number>({
     document.addEventListener("mousedown", onDoc);
     return () => document.removeEventListener("mousedown", onDoc);
   }, []);
-const current = options.find(o => o.value === value);
+
+  const current = options.find(o => o.value === value);
 
   return (
     <div ref={ref} className="relative w-full flex-1 max-w-[calc(100vw-2rem)] md:max-w-none">
@@ -91,10 +95,10 @@ const loadMenuItems = (): MenuItem[] => {
     const raw = localStorage.getItem(STORAGE_MENU);
     if (raw) {
       const parsed = JSON.parse(raw) as MenuItem[];
-      if (Array.isArray(parsed) && parsed.length) return parsed;
+      if (Array.isArray(parsed) && parsed.length) return parsed.map((it) => ({ ...it, value: toInt(it.value) }));
     }
   } catch {}
-  return [...MENU_ITEMS_DEFAULT];
+  return MENU_ITEMS_DEFAULT.map((it) => ({ ...it, value: toInt(it.value) }));
 };
 
 const saveMenuItems = (items: MenuItem[]) => {
@@ -136,8 +140,7 @@ export default function App() {
   const [kbPad, setKbPad] = useState(0);
 
   useEffect(() => {
-    if (!pdfOpen) { setKeyboardOpen(false);
- setKbPad(0); return; }
+    if (!pdfOpen) { setKeyboardOpen(false); setKbPad(0); return; }
     const vv: any = (window as any).visualViewport;
     const threshold = 120; // px: treat as keyboard if viewport reduced beyond this
     const update = () => {
@@ -187,19 +190,15 @@ export default function App() {
 
   const nextTick = () => new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
 
-  function applyCaptureStyles(root: HTMLElement) {
+  function applyCaptureStyles() {
     const style = document.createElement('style');
     style.id = '__capture_styles__';
-  const cs = window.getComputedStyle(root);
-  const basePx = Math.max( Math.round(parseFloat(cs.fontSize) || 16), 10 );
-  const linePx = Math.max( Math.round((parseFloat(cs.lineHeight) || basePx * 1.4)), basePx );
-
     style.textContent = `
       html, body { -webkit-text-size-adjust: 100%; }
       * { font-synthesis: none; }
       /* neutralize fixed to avoid vertical misalignment */
       .fixed, [data-fixed="true"], footer { position: static !important; }
-      [data-capture-root] { min-height: auto !important; padding: 0 !important;  font-size: ${basePx}px !important; line-height: ${linePx}px !important; line-height: 1 !important; }
+      [data-capture-root] { min-height: auto !important; padding: 0 !important; }
       main { padding-bottom: 0 !important; flex: none !important; }
       header { padding-top: 0 !important; margin-top: 0 !important; }
       [data-capture-root] .space-y-3 { margin-bottom: 0 !important; }
@@ -226,13 +225,13 @@ export default function App() {
       // Ensure top-left origin and stable layout
       window.scrollTo(0, 0);
       if (!root) { throw new Error("capture root not found"); }
-      const cleanup = applyCaptureStyles(root);
+      const cleanup = applyCaptureStyles();
       // Declare outside try so we can use them after cleanup
       let dataUrl: string;
       let w: number;
       let h: number;
       try {
-        const canvas = await (window as any).html2canvas(root, { foreignObjectRendering: true, useCORS: true, backgroundColor: "#ffffff", letterRendering: true, scrollX: 0, scrollY: 0, scale: Math.max(2, (window.devicePixelRatio ? Math.round(window.devicePixelRatio) : 2)), windowWidth: root.scrollWidth, windowHeight: root.scrollHeight });
+        const canvas = await (window as any).html2canvas(root, { foreignObjectRendering: true, scale: 1, backgroundColor: "#ffffff", useCORS: true, letterRendering: true, scrollX: 0, scrollY: 0, windowWidth: root.scrollWidth, windowHeight: root.scrollHeight });
         dataUrl = canvas.toDataURL("image/png");
         w = canvas.width; h = canvas.height;
       } catch (e) {
@@ -339,11 +338,12 @@ export default function App() {
   }, [menuItems]);
 
   const total = useMemo(() => {
-    return rows.reduce((acc, r) => {
+    const sum = rows.reduce((acc, r) => {
       const list = byGroup(menuItems, r.group);
       const item = list[r.index];
-      return acc + (item?.value ?? 0);
+      return acc + toInt(item?.value ?? 0);
     }, 0);
+    return toInt(sum);
   }, [rows, menuItems]);
 
   // 通常画面の「リセット」：
@@ -354,16 +354,7 @@ export default function App() {
   // 通常画面の「リセット」：各メニュー項目を一番上(インデックス0)にするだけ。他は変更しない。
   const gs = groupsOf(menuItems);
   setRows(gs.map((g) => ({ group: g, index: 0 } as Row)));
-}
-
-    const basePx = Math.max(Math.round(fs), 10);
-    const linePx = Math.max(Math.round(lh), basePx);
-    // Apply as inline style only to the capture root to avoid global side effects
-    root.style.fontSize = basePx + 'px';
-    root.style.lineHeight = linePx + 'px';
-  } catch {}
-}
-;
+};
 
   const handleEdit = () => setEditing(true);
 
@@ -676,11 +667,12 @@ function MenuEditor({
                 />
                 <input
                   className="w-[4.5ch] rounded-md border border-green-200 bg-white/90 px-2 py-2 text-right outline-none text-lg md:text-xl"
-                  inputMode="decimal"
+                  inputMode="numeric"
                   value={String(row.value)}
                   onChange={(e) => {
-                    const n = Number(e.target.value.replace(/[^0-9.\\-]/g, ""));
-                    updateRow(tab, idx, { value: isFinite(n) ? n : 0 });
+                    const raw = e.target.value.replace(/[^0-9\-]/g, "");
+                    const n = toInt(raw);
+                    updateRow(tab, idx, { value: n });
                   }}
                   placeholder="0"
                 />
