@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import type { Group, MenuItem } from "./menuOptions";
 import { MENU_ITEMS_DEFAULT, byGroup, groupsOf } from "./menuOptions";
+import MenuEditor from "./MenuEditor";
 // ---- Versioning ----
 const FIXED_VERSION_TEXT = "v2.1.035";
 const VERSION_PREFIX = "2.1"; // major.minor
@@ -506,54 +507,36 @@ const fname = String(d.getMonth()+1).padStart(2,"0")
       
       {/* PDF Password Modal */}
       {pdfOpen && (
-        <div className={"fixed inset-0 z-[60] bg-black/60 backdrop-blur-sm flex justify-center " + (keyboardOpen ? "items-start" : "items-center")} style={keyboardOpen ? { paddingTop: kbPad } : undefined}>
-          <div className="w-[min(90vw,420px)] rounded-2xl bg-white shadow-xl p-5">
-            <div className="text-xl font-semibold text-center mb-2">閲覧用のパスワードを入力して下さい</div>
-            <input
-                  className="w-[4.5ch] rounded-md border border-green-300 bg-white/90 px-2 py-2 text-right outline-none text-lg md:text-xl"
-                  type="text"
-                  inputMode="decimal"
-                  pattern="[0-9]*[.,．。]?[0-9]*"
-                  value={rawValues[keyFor(tab, idx)] ?? String(row.value)}
-                  onFocus={() => setRawValues(prev => ({ ...prev, [keyFor(tab, idx)]: String(row.value) }))}
-                  onChange={(e) => {
-                    let s = e.target.value || "";
-                    s = s.replace(/[，、､,]/g, ".").replace(/[．。]/g, ".");
-                    s = s.replace(/[^0-9.\-]/g, "");
-                    const firstDot = s.indexOf(".");
-                    if (firstDot !== -1) {
-                      s = s.slice(0, firstDot + 1) + s.slice(firstDot + 1).replace(/\./g, "");
-                    }
-                    setRawValues(prev => ({ ...prev, [keyFor(tab, idx)]: s }));
-                  }}
-                  onBlur={() => {
-                    const s = (rawValues[keyFor(tab, idx)] ?? "").trim();
-                    if (s === "" || s === "-" || s === "-.") {
-                      setRawValues(prev => { const { [keyFor(tab, idx)]: _, ...rest } = prev; return rest; });
-                      return;
-                    }
-                    const n = Number(s);
-                    updateRow(tab, idx, { value: Number.isFinite(n) ? n : row.value });
-                    setRawValues(prev => { const { [keyFor(tab, idx)]: _, ...rest } = prev; return rest; });
-                  }}
-                  placeholder="0"
-                />
-                <button
-                  onClick={() => removeRow(tab, idx)}
-                  className="px-2 py-2 w-8 text-center rounded-md border border-red-300 bg-white hover:bg-red-50 text-red-600 text-base md:text-lg"
-                 aria-label="削除">☓</button>
-              </div>
-            ))}
-            <div className="p-3 flex justify-end">
-              <button
-                onClick={() => addRow(tab)}
-                className="px-4 py-2 rounded-md border border-green-300 bg-white hover:bg-green-50 text-base md:text-lg"
-              >
-                + 行を追加
-              </button>
-            </div>
-          </div>
-        </div>
+  <div className={"fixed inset-0 z-[60] bg-black/60 backdrop-blur-sm flex justify-center " + (keyboardOpen ? "items-start" : "items-center")} style={keyboardOpen ? { paddingTop: kbPad } : undefined}>
+    <div className="w-[min(90vw,420px)] rounded-2xl bg-white shadow-xl p-5">
+      <div className="text-xl font-semibold text-center mb-3">閲覧用のパスワードを入力して下さい</div>
+      <div className="flex items-center gap-3">
+        <input
+          className="flex-1 rounded-md border border-green-300 bg-white/90 px-3 py-2 outline-none text-lg md:text-xl"
+          type="password"
+          placeholder="4桁以上を推奨"
+          value={pdfPwd}
+          onChange={(e) => setPdfPwd(e.target.value)}
+        />
+        <button
+          onClick={() => setPdfOpen(false)}
+          className="px-4 py-2 rounded-md border border-green-300 bg-white hover:bg-green-50 text-base md:text-lg"
+          aria-label="キャンセル"
+          disabled={pdfBusy}
+        >
+          キャンセル
+        </button>
+        <button
+          onClick={() => makePasswordPdf(pdfPwd)}
+          className="px-4 py-2 rounded-md border border-green-300 bg-emerald-600 text-white hover:bg-emerald-500 text-base md:text-lg disabled:opacity-60"
+          disabled={pdfBusy || !pdfPwd}
+        >
+          {pdfBusy ? "作成中…" : "OK"}
+        </button>
+      </div>
+    </div>
+  </div>
+)}</div>
       <div data-capture-hide className="h-[calc(env(safe-area-inset-bottom,0px)+6.5rem)]"></div>
       </main>
     </div>
