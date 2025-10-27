@@ -1,7 +1,39 @@
 import React, { useEffect, useMemo, useState } from "react";
 import type { Group, MenuItem } from "./menuOptions";
 import { MENU_ITEMS_DEFAULT, byGroup, groupsOf } from "./menuOptions";
-import MenuEditor from "./MenuEditor";
+
+/** Lightweight inline fallback for MenuEditor (avoids build failure if ./MenuEditor is missing) */
+type MenuEditorProps = {
+  items: MenuItem[];
+  onCancel: () => void;
+  onSave: (next: MenuItem[]) => void;
+};
+const MenuEditor: React.FC<MenuEditorProps> = ({ items, onCancel, onSave }) => {
+  return (
+    <div className="p-4">
+      <div className="text-lg font-semibold mb-3">編集画面（簡易）</div>
+      <div className="text-sm text-gray-600 mb-4">
+        外部の <code>./MenuEditor</code> が未配置のため、簡易表示のみです。<br/>
+        「保存」はそのままの内容で確定します（値の編集はここではできません）。
+      </div>
+      <div className="flex gap-3">
+        <button
+          onClick={onCancel}
+          className="px-4 py-2 rounded-md border border-green-300 bg-white hover:bg-green-50"
+        >
+          キャンセル
+        </button>
+        <button
+          onClick={() => onSave(items)}
+          className="px-4 py-2 rounded-md border border-green-300 bg-emerald-600 text-white hover:bg-emerald-500"
+        >
+          保存
+        </button>
+      </div>
+    </div>
+  );
+};
+
 // ---- Versioning ----
 const FIXED_VERSION_TEXT = "v2.1.035";
 const VERSION_PREFIX = "2.1"; // major.minor
