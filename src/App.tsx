@@ -733,7 +733,7 @@ function MenuEditor({
                   inputMode="decimal"
                   value={String(row.value)}
                   onChange={(e) => {
-                    const n = Number(e.target.value.replace(/[^0-9.\-]/g, ""));
+                    const n = Number(e.target.value.replace(/[，、､,]/g, ".").replace(/[．。]/g, ".").replace(/[^0-9.\-]/g, ""));
                     updateRow(tab, idx, { value: isFinite(n) ? n : 0 });
                   }}
                   placeholder="0"
