@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import type { Group, MenuItem } from "./menuOptions";
 import { MENU_ITEMS_DEFAULT, byGroup, groupsOf } from "./menuOptions";
 // ---- Versioning ----
-const FIXED_VERSION_TEXT = "v2.1.034";
+const FIXED_VERSION_TEXT = "v2.1.035";
 const VERSION_PREFIX = "2.1"; // major.minor
 const STORAGE_VERSION_PATCH = "menu.version.patch";
 function loadVersionPatch(): number {
@@ -352,6 +352,10 @@ const fname = String(d.getMonth()+1).padStart(2,"0")
   const versionText = useMemo(() => formatVersion(versionPatch), [versionPatch]);
 
   const [menuItems, setMenuItems] = useState<MenuItem[]>(loadMenuItems);
+
+  // Tolerant raw input buffer for decimal typing on mobile
+  const [rawValues, setRawValues] = useState<Record<string, string>>({});
+  const keyFor = (g: Group, i: number) => `${g}:${i}`;
   const [rows, setRows] = useState<Row[]>(() => loadRows(loadMenuItems()));
   const [editing, setEditing] = useState(false);
 
@@ -505,236 +509,32 @@ const fname = String(d.getMonth()+1).padStart(2,"0")
         <div className={"fixed inset-0 z-[60] bg-black/60 backdrop-blur-sm flex justify-center " + (keyboardOpen ? "items-start" : "items-center")} style={keyboardOpen ? { paddingTop: kbPad } : undefined}>
           <div className="w-[min(90vw,420px)] rounded-2xl bg-white shadow-xl p-5">
             <div className="text-xl font-semibold text-center mb-2">閲覧用のパスワードを入力して下さい</div>
-            <input onFocus={() => { setKeyboardOpen(true); }} onBlur={() => { /* reset handled by vv listener*/ }}
-              type="password"
-              value={pdfPwd}
-              onChange={(e) => setPdfPwd(e.target.value)}
-              className="mt-2 w-full rounded-md border border-green-300 bg-white/90 px-3 py-2 outline-none text-lg"
-              placeholder="パスワード（4文字以上）"
-              autoFocus
-            />
-            <div className="text-xs text-gray-500 mt-1">※パスワードは最低4文字です</div>
-            <div className="mt-4 flex items-center justify-end gap-3">
-              <button
-                type="button"
-                className="h-9 min-h-[36px] px-4 whitespace-nowrap leading-none rounded-md border border-green-300 bg-white hover:bg-green-50 shadow-sm text-base"
-                onClick={() => { setPdfOpen(false); setPdfPwd(""); }}
-                disabled={pdfBusy}
-              >
-                キャンセル
-              </button>
-              <button
-                type="button"
-                className={"px-4 py-1 rounded-md border shadow-sm text-base " + (pdfPwd.length >= 4 && !pdfBusy ? "border-green-500 bg-green-600 text-white hover:brightness-110" : "border-gray-300 bg-gray-200 text-gray-500 cursor-not-allowed")}
-                onClick={async () => {
-                  if (pdfPwd.length < 4 || pdfBusy) return;
-                  const pwd = pdfPwd;
-                  setPdfOpen(false);
-                  setPdfPwd("");
-                  await new Promise(r => setTimeout(r, 0));
-                  await makePasswordPdf(pwd);
-                }}
-                disabled={pdfPwd.length < 4 || pdfBusy}
-              >
-                {pdfBusy ? "作成中..." : "OK"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      </main>
-
-      <footer className="fixed bottom-0 inset-x-0 z-50 pb-[calc(env(safe-area-inset-bottom,0px)+0.75rem)] border-t border-green-200 bg-green-100/80 backdrop-blur supports-[backdrop-filter]:bg-green-100/70 shadow">
-        <div className="mx-auto max-w-3xl px-4 py-3 flex items-center justify-between">
-          <div className="text-3xl md:text-4xl text-green-700">合計</div>
-          <div className="text-6xl md:text-7xl font-extrabold tabular-nums text-green-900">
-            {total}
-          </div>
-        </div>
-      </footer>
-    </div>
-  );
-}
-
-/** ===================== メニュー編集画面（フォント拡大） ===================== */
-function MenuEditor({
-  items,
-  onCancel,
-  onSave,
-}: {
-  items: MenuItem[];
-  onCancel: () => void;
-  onSave: (items: MenuItem[]) => void;
-}) {
-  const [draft, setDraft] = useState<MenuItem[]>(() => items.map(i => ({ ...i })));
-  const [tab, setTab] = useState<Group>(() => ( (items[0]?.group ?? 1) as Group ));
-
-  type MapRecord = { [key: number]: Group };
-
-  const normalizeGroups = (arr: MenuItem[], preferTab?: Group) => {
-    const sorted = Array.from(new Set(arr.map(a => a.group))).sort((a,b)=>a-b);
-    const map: MapRecord = {};
-    let next = 1 as Group;
-    for (const g of sorted) {
-      if (next > 6) break;
-      map[g] = next as Group;
-      next = (next + 1) as Group;
-    }
-    const remapped = arr.map(a => ({ ...a, group: map[a.group] ?? 6 as Group }));
-    const newGroups = Array.from(new Set(remapped.map(a => a.group))).sort((a,b)=>a-b) as Group[];
-    const newTab = preferTab && map[preferTab] ? map[preferTab] : (newGroups[0] ?? 1) as Group;
-    return { remapped, newTab };
-  };
-
-  const currentGroups = () => Array.from(new Set(draft.map(d => d.group))).sort((a,b)=>a-b) as Group[];
-  const groupList = (g: Group) => draft.filter(d => d.group === g);
-  const setGroupList = (g: Group, list: MenuItem[]) => {
-    const others = draft.filter(d => d.group !== g);
-    setDraft([...others, ...list.map(v => ({ ...v, group: g }))]);
-  };
-
-  const addRow = (g: Group) => {
-    const list = groupList(g);
-    setGroupList(g, [...list, { group: g, label: "", value: 0 }]);
-  };
-
-  const removeRow = (g: Group, idx: number) => {
-    const list = groupList(g).slice();
-    list.splice(idx, 1);
-    setGroupList(g, list);
-  };
-
-  const updateRow = (g: Group, idx: number, patch: Partial<MenuItem>) => {
-    const list = groupList(g).slice();
-    list[idx] = { ...list[idx], ...patch };
-    setGroupList(g, list);
-  };
-
-  const resetToDefault = () => {
-    const next = MENU_ITEMS_DEFAULT.map(i => ({ ...i }));
-    setDraft(next);
-    onSave(next); // 自動保存
-    setTab(1 as Group);
-  };
-
-  const addGroup = () => {
-    const present = new Set(currentGroups());
-    for (const g of [1,2,3,4,5,6] as Group[]) {
-      if (!present.has(g)) {
-        setDraft(prev => [...prev, { group: g, label: "", value: 0 }]);
-        setTab(g);
-        return;
-      }
-    }
-  };
-
-  const removeGroup = () => {
-    const groups = currentGroups();
-    if (groups.length <= 1) return;
-    const g = tab;
-    const afterDelete = draft.filter(d => d.group !== g);
-    const { remapped, newTab } = normalizeGroups(afterDelete, (g + 1) as Group);
-    setDraft(remapped);
-    setTab(newTab);
-    onSave(remapped); // 保存（閉じない）
-  };
-
-  const totalCount = draft.length;
-  const groups = currentGroups();
-
-  return (
-    <div id="capture" data-capture-root className="min-h-dvh w-full overflow-x-hidden bg-green-50 text-green-900 flex flex-col text-[clamp(16px,2.7vw,18px)]">
-      <header className="w-full max-w-3xl mx-auto pt-4 px-4">
-  <div className="w-full text-center">
-    <h1 className="font-bold tracking-wide text-3xl md:text-4xl">メニュー編集</h1>
-  </div>
-  <div className="w-full grid grid-cols-3 items-center mt-2">
-    <div className="flex justify-start">
-      <button
-        onClick={onCancel}
-        className="h-9 min-h-[36px] px-4 whitespace-nowrap leading-none rounded-md border border-green-300 bg-white/80 hover:bg-white shadow-sm text-base md:text-lg"
-      >
-        ← 戻る
-      </button>
-    </div>
-    <div className="flex justify-center">
-      <button
-        onClick={resetToDefault}
-        className="h-9 min-h-[36px] px-4 whitespace-nowrap leading-none rounded-md border border-amber-300 bg-white/80 hover:bg-amber-50 shadow-sm text-base md:text-lg"
-        title="既定メニューへ戻す（自動保存）"
-      >
-        既定に戻す
-      </button>
-    </div>
-    <div className="flex justify-end">
-      <button
-        onClick={() => onSave(draft)}
-        className="px-5 py-2 rounded-xl bg-green-600 text-white hover:brightness-110 shadow text-lg"
-      >
-        保存
-      </button>
-    </div>
-  </div>
-</header>
-
-      <main className="w-full max-w-3xl mx-auto px-4 mt-4 flex-1 pb-[calc(env(safe-area-inset-bottom,0px)+7rem)]">
-        <div className="w-full flex justify-center">
-  <div className={"mb-2 rounded-xl border border-green-300 bg-white/80 overflow-hidden " + (groups.length >= 4 ? "grid grid-cols-3" : "inline-flex")}>
-    {groups.map((g, idx) => (
-      <button
-        key={g}
-        onClick={() => setTab(g)}
-        className={
-          "px-4 py-2 text-base md:text-lg font-medium " +
-          (groups.length >= 4
-            ? ("border-r border-b last:border-r-0 " + (idx < 3 ? "border-b " : ""))
-            : "border-r last:border-r-0 ") +
-          (tab === g ? "bg-emerald-600 text-white" : "hover:bg-white")
-        }
-      >
-        グループ {g}
-      </button>
-    ))}
-  </div>
-</div>
-
-        <div className="mb-3 flex items-center justify-center gap-2">
-          <button
-            onClick={removeGroup}
-            className="h-9 min-h-[36px] px-4 whitespace-nowrap leading-none rounded-md border border-red-300 bg-white hover:bg-red-50 text-red-600 shadow-sm text-base md:text-lg"
-          >
-            グループの削除
-          </button>
-          <button
-            onClick={addGroup}
-            className="h-9 min-h-[36px] px-4 whitespace-nowrap leading-none rounded-md border border-green-300 bg-white hover:bg-green-50 shadow-sm disabled:opacity-50 text-base md:text-lg"
-            disabled={groups.length >= 6}
-          >
-            グループの追加
-          </button>
-        </div>
-
-        <div className="rounded-xl border border-green-200 bg-white/70 shadow-sm">
-          <div className="grid grid-cols-[minmax(0,1fr)_minmax(4.5ch,6.5ch)_32px] md:grid-cols-[minmax(0,1fr)_minmax(6ch,8ch)_48px] gap-2 p-3 items-center text-sm md:text-base font-medium text-green-700">
-            <div>ラベル</div><div className="text-left pl-1">数値</div><div className="text-center md:text-right text-red-600">削除</div>
-          </div>
-          <div className="divide-y divide-green-100">
-            {groupList(tab).map((row, idx) => (
-              <div key={idx} className="grid grid-cols-[minmax(0,1fr)_minmax(4.5ch,6.5ch)_32px] md:grid-cols-[minmax(0,1fr)_minmax(6ch,8ch)_48px] gap-2 p-3 items-center">
-                <input
-                  className="min-w-0 rounded-md border border-green-200 bg-white/90 px-2 py-2 outline-none text-lg md:text-xl"
-                  value={row.label}
-                  onChange={(e) => updateRow(tab, idx, { label: e.target.value })}
-                  placeholder="メニュー名"
-                />
-                <input
-                  className="w-[4.5ch] rounded-md border border-green-200 bg-white/90 px-2 py-2 text-right outline-none text-lg md:text-xl"
+            <input
+                  className="w-[4.5ch] rounded-md border border-green-300 bg-white/90 px-2 py-2 text-right outline-none text-lg md:text-xl"
+                  type="text"
                   inputMode="decimal"
-                  value={String(row.value)}
+                  pattern="[0-9]*[.,．。]?[0-9]*"
+                  value={rawValues[keyFor(tab, idx)] ?? String(row.value)}
+                  onFocus={() => setRawValues(prev => ({ ...prev, [keyFor(tab, idx)]: String(row.value) }))}
                   onChange={(e) => {
-                    const n = Number(e.target.value.replace(/[，、､,]/g, ".").replace(/[．。]/g, ".").replace(/[^0-9.\-]/g, ""));
-                    updateRow(tab, idx, { value: isFinite(n) ? n : 0 });
+                    let s = e.target.value || "";
+                    s = s.replace(/[，、､,]/g, ".").replace(/[．。]/g, ".");
+                    s = s.replace(/[^0-9.\-]/g, "");
+                    const firstDot = s.indexOf(".");
+                    if (firstDot !== -1) {
+                      s = s.slice(0, firstDot + 1) + s.slice(firstDot + 1).replace(/\./g, "");
+                    }
+                    setRawValues(prev => ({ ...prev, [keyFor(tab, idx)]: s }));
+                  }}
+                  onBlur={() => {
+                    const s = (rawValues[keyFor(tab, idx)] ?? "").trim();
+                    if (s === "" || s === "-" || s === "-.") {
+                      setRawValues(prev => { const { [keyFor(tab, idx)]: _, ...rest } = prev; return rest; });
+                      return;
+                    }
+                    const n = Number(s);
+                    updateRow(tab, idx, { value: Number.isFinite(n) ? n : row.value });
+                    setRawValues(prev => { const { [keyFor(tab, idx)]: _, ...rest } = prev; return rest; });
                   }}
                   placeholder="0"
                 />
