@@ -1,11 +1,8 @@
 import React, { useEffect, useMemo, useState } from "react";
 import type { Group, MenuItem } from "./menuOptions";
 import { MENU_ITEMS_DEFAULT, byGroup, groupsOf } from "./menuOptions";
-// ---- Numeric helpers ----
-const toInt = (n: number) => Math.round(Number(n) || 0);
-
 // ---- Versioning ----
-const FIXED_VERSION_TEXT = "v2.1.035";
+const FIXED_VERSION_TEXT = "v2.1.032";
 const VERSION_PREFIX = "2.1"; // major.minor
 const STORAGE_VERSION_PATCH = "menu.version.patch";
 function loadVersionPatch(): number {
@@ -95,10 +92,10 @@ const loadMenuItems = (): MenuItem[] => {
     const raw = localStorage.getItem(STORAGE_MENU);
     if (raw) {
       const parsed = JSON.parse(raw) as MenuItem[];
-      if (Array.isArray(parsed) && parsed.length) return parsed.map((it) => ({ ...it, value: toInt(it.value) }));
+      if (Array.isArray(parsed) && parsed.length) return parsed;
     }
   } catch {}
-  return MENU_ITEMS_DEFAULT.map((it) => ({ ...it, value: toInt(it.value) }));
+  return [...MENU_ITEMS_DEFAULT];
 };
 
 const saveMenuItems = (items: MenuItem[]) => {
@@ -190,11 +187,93 @@ export default function App() {
 
   const nextTick = () => new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
 
-  function applyCaptureStyles() {
-    const style = document.createElement('style');
-    style.id = '__capture_styles__';
-    style.textContent = `
+  
+function applyCaptureStyles(rootEl?: HTMLElement) {
+  // Inject CSS to normalize layout + snapshot inline rounding for fonts
+  const style = document.createElement('style');
+  style.id = '__capture_styles__';
+  style.textContent = `
       html, body { -webkit-text-size-adjust: 100%; }
+      * { font-synthesis: none; }
+      /* neutralize fixed to avoid vertical misalignment */
+      .fixed, [data-fixed="true"], footer { position: static !important; }
+      [data-capture-root] { min-height: auto !important; padding: 0 !important; }
+      main { padding-bottom: 0 !important; flex: none !important; }
+      header { padding-top: 0 !important; margin-top: 0 !important; }
+      [data-capture-root] .space-y-3 { margin-bottom: 0 !important; }
+      [data-capture-root] [data-empty="true"] { display: none !important; }
+      [data-capture-root] [data-capture-hide] { display: none !important; }
+  `;
+  document.head.appendChild(style);
+
+  // Temporarily disable transforms inside root to avoid fractional baseline shifts
+  const target = rootEl || document.querySelector('[data-capture-root]') as HTMLElement || document.body;
+  const transformed: Array<{el: HTMLElement, prev: string}> = [];
+  const fontPatched: Array<{el: HTMLElement, prevFont: string, prevLH: string, prevLS: string}> = [];
+
+  if (target) {
+    const all = target.querySelectorAll<HTMLElement>('*');
+    all.forEach((el) => {
+      const cs = window.getComputedStyle(el);
+      // 5) Avoid CSS transforms during capture
+      if (cs.transform && cs.transform !== 'none') {
+        transformed.push({ el, prev: el.style.transform });
+        el.style.transform = 'none';
+      }
+      // 1) フォント系を整数化（font-size / line-height / letter-spacing）
+      const fs = cs.fontSize || '';
+      const lh = cs.lineHeight || '';
+      const ls = cs.letterSpacing || '';
+
+      let newFs = el.style.fontSize;
+      if (fs.endsWith('px')) {
+        const v = Math.round(parseFloat(fs));
+        newFs = v + 'px';
+        el.style.fontSize = newFs;
+      }
+      let newLh = el.style.lineHeight;
+      if (lh !== 'normal') {
+        if (lh.endsWith('px')) {
+          const v = Math.round(parseFloat(lh));
+          newLh = v + 'px';
+          el.style.lineHeight = newLh;
+        } else if (/^\d+(\.\d+)?$/.test(lh)) {
+          // unitless number -> clamp to integer multiplier to reduce fractions
+          const v = Math.round(parseFloat(lh));
+          newLh = String(v);
+          el.style.lineHeight = newLh;
+        }
+      }
+      let newLs = el.style.letterSpacing;
+      if (ls.endsWith('px')) {
+        const v = Math.round(parseFloat(ls));
+        newLs = v + 'px';
+        el.style.letterSpacing = newLs;
+      }
+
+      if (newFs || newLh || newLs) {
+        fontPatched.push({ el, prevFont: el.style.fontSize, prevLH: el.style.lineHeight, prevLS: el.style.letterSpacing });
+      }
+    });
+  }
+
+  // Also force footer to static if exists
+  const ft = document.querySelector('footer') as HTMLElement | null;
+  const prevPos = ft ? ft.style.position : null;
+  if (ft) ft.style.position = 'static';
+
+  return () => {
+    if (ft) ft.style.position = prevPos || '';
+    // restore transforms and font styles
+    transformed.forEach(({el, prev}) => { el.style.transform = prev || ''; });
+    fontPatched.forEach(({el, prevFont, prevLH, prevLS}) => {
+      el.style.fontSize = prevFont || '';
+      el.style.lineHeight = prevLH || '';
+      el.style.letterSpacing = prevLS || '';
+    });
+    style.remove();
+  };
+}
       * { font-synthesis: none; }
       /* neutralize fixed to avoid vertical misalignment */
       .fixed, [data-fixed="true"], footer { position: static !important; }
@@ -221,19 +300,30 @@ export default function App() {
       setPdfBusy(true);
       await ensurePdfDeps();
       await nextTick();
-      const root = (document.getElementById("capture") as HTMLElement) || (document.getElementById("root") as HTMLElement) || (document.body as HTMLElement);
+      const root = (document.getElementById("capture") as HTMLElement) || (document.querySelector('[data-capture-root]') as HTMLElement) || (document.getElementById("root") as HTMLElement) || (document.body as HTMLElement);
       // Ensure top-left origin and stable layout
       window.scrollTo(0, 0);
       if (!root) { throw new Error("capture root not found"); }
-      const cleanup = applyCaptureStyles();
+      const cleanup = applyCaptureStyles(root);
       // Declare outside try so we can use them after cleanup
       let dataUrl: string;
       let w: number;
       let h: number;
       try {
-        const canvas = await (window as any).html2canvas(root, { foreignObjectRendering: true, scale: 1, backgroundColor: "#ffffff", useCORS: true, letterRendering: true, scrollX: 0, scrollY: 0, windowWidth: root.scrollWidth, windowHeight: root.scrollHeight });
+        const scale = 2; // integer scale for hi-res
+        const r = root.getBoundingClientRect();
+        const x = Math.round(r.left), y = Math.round(r.top);
+        const wpx = Math.round(r.width), hpx = Math.round(r.height);
+        const canvas = await (window as any).html2canvas(root, {
+          scale,
+          x, y, width: wpx, height: hpx,
+          useCORS: true,
+          backgroundColor: null,
+          windowWidth: root.scrollWidth,
+          windowHeight: root.scrollHeight
+        });
         dataUrl = canvas.toDataURL("image/png");
-        w = canvas.width; h = canvas.height;
+        w = Math.floor(canvas.width); h = Math.floor(canvas.height);
       } catch (e) {
       console.error('PDF failed', e);
       alert('PDF作成に失敗しました。' + (e && (e as any).message ? '\n' + (e as any).message : '\nもう一度お試しください。'));
@@ -242,7 +332,7 @@ export default function App() {
       }
 
       const docDef: any = {
-        pageSize: { width: w, height: h },
+        pageSize: { width: Math.floor(w), height: Math.floor(h) },
         pageMargins: [0, 0, 0, 0],
         permissions: {
           printing: "none",
@@ -255,7 +345,7 @@ export default function App() {
         },
         userPassword: pwd,
         ownerPassword: pwd,
-        content: [{ image: dataUrl, width: w, height: h }],
+        content: [{ image: dataUrl, width: Math.floor(w), height: Math.floor(h) }],
       };
       const pdf = (window as any).pdfMake.createPdf(docDef);
 
@@ -338,12 +428,11 @@ export default function App() {
   }, [menuItems]);
 
   const total = useMemo(() => {
-    const sum = rows.reduce((acc, r) => {
+    return rows.reduce((acc, r) => {
       const list = byGroup(menuItems, r.group);
       const item = list[r.index];
-      return acc + toInt(item?.value ?? 0);
+      return acc + (item?.value ?? 0);
     }, 0);
-    return toInt(sum);
   }, [rows, menuItems]);
 
   // 通常画面の「リセット」：
@@ -667,12 +756,11 @@ function MenuEditor({
                 />
                 <input
                   className="w-[4.5ch] rounded-md border border-green-200 bg-white/90 px-2 py-2 text-right outline-none text-lg md:text-xl"
-                  inputMode="numeric"
+                  inputMode="decimal"
                   value={String(row.value)}
                   onChange={(e) => {
-                    const raw = e.target.value.replace(/[^0-9\-]/g, "");
-                    const n = toInt(raw);
-                    updateRow(tab, idx, { value: n });
+                    const n = Number(e.target.value.replace(/[^0-9.\\-]/g, ""));
+                    updateRow(tab, idx, { value: isFinite(n) ? n : 0 });
                   }}
                   placeholder="0"
                 />
