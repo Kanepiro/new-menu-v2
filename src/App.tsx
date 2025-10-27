@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import type { Group, MenuItem } from "./menuOptions";
 import { MENU_ITEMS_DEFAULT, byGroup, groupsOf } from "./menuOptions";
 // ---- Versioning ----
-const FIXED_VERSION_TEXT = "v2.1.034";
+const FIXED_VERSION_TEXT = "v2.1.035";
 const VERSION_PREFIX = "2.1"; // major.minor
 const STORAGE_VERSION_PATCH = "menu.version.patch";
 function loadVersionPatch(): number {
@@ -194,6 +194,8 @@ export default function App() {
     style.textContent = `
       html, body { -webkit-text-size-adjust: 100%; }
       * { font-synthesis: none; }
+      html, body { margin: 0 !important; padding: 0 !important; }
+      #capture { margin: 0 !important; padding: 0 !important; transform: translateY(2px); transform-origin: top left; }
       [data-capture-root], [data-capture-root] * { line-height: 1.0 !important; vertical-align: baseline !important; }
       /* neutralize fixed to avoid vertical misalignment */
       .fixed, [data-fixed="true"], footer { position: static !important; }
