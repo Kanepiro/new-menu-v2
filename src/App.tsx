@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import type { Group, MenuItem } from "./menuOptions";
 import { MENU_ITEMS_DEFAULT, byGroup, groupsOf } from "./menuOptions";
 // ---- Versioning ----
-const FIXED_VERSION_TEXT = "v2.1.033";
+const FIXED_VERSION_TEXT = "v2.1.032";
 const VERSION_PREFIX = "2.1"; // major.minor
 const STORAGE_VERSION_PATCH = "menu.version.patch";
 function loadVersionPatch(): number {
@@ -188,32 +188,9 @@ export default function App() {
   const nextTick = () => new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
 
   function applyCaptureStyles() {
-  const rootEl = (document.getElementById("capture") as HTMLElement) || (document.getElementById("root") as HTMLElement) || (document.body as HTMLElement);
-  // --- Capture-only: text baseline nudge (scope-limited) ---
-  const nudgeStyle = document.createElement('style');
-  nudgeStyle.id = 'pdf-nudge-style';
-  nudgeStyle.textContent = `
-    .pdf-capture span,
-    .pdf-capture p,
-    .pdf-capture label,
-    .pdf-capture input,
-    .pdf-capture select,
-    .pdf-capture button,
-    .pdf-capture .text-xs,
-    .pdf-capture .text-sm,
-    .pdf-capture .text-base,
-    .pdf-capture .text-lg,
-    .pdf-capture .text-xl,
-    .pdf-capture .text-2xl,
-    .pdf-capture .text-3xl { transform: translateY(-0.5em); }
-  `;
-  document.head.appendChild(nudgeStyle);
-  rootEl.classList.add('pdf-capture');
-
-  // --- Existing capture base styles ---
-  const capStyle = document.createElement('style');
-  capStyle.id = '__capture_styles__';
-  capStyle.textContent = `
+    const style = document.createElement('style');
+    style.id = '__capture_styles__';
+    style.textContent = `
       html, body { -webkit-text-size-adjust: 100%; }
       * { font-synthesis: none; }
       /* neutralize fixed to avoid vertical misalignment */
@@ -225,24 +202,16 @@ export default function App() {
       [data-capture-root] [data-empty="true"] { display: none !important; }
       [data-capture-root] [data-capture-hide] { display: none !important; }
     `;
-  document.head.appendChild(capStyle);
-
-  // footer static patch
-  const ft = document.querySelector('footer') as HTMLElement | null;
-  const prevPos = ft ? ft.style.position : null;
-  if (ft) ft.style.position = 'static';
-
-  return () => {
-    // cleanup styles and class
-    try {
-      rootEl.classList.remove('pdf-capture');
-      const st1 = document.getElementById('pdf-nudge-style'); if (st1 && st1.parentNode) st1.parentNode.removeChild(st1);
-      const st2 = document.getElementById('__capture_styles__'); if (st2 && st2.parentNode) st2.parentNode.removeChild(st2);
+    document.head.appendChild(style);
+    // Also force footer to static if exists
+    const ft = document.querySelector('footer') as HTMLElement | null;
+    const prevPos = ft ? ft.style.position : null;
+    if (ft) ft.style.position = 'static';
+    return () => {
       if (ft) ft.style.position = prevPos || '';
-    } catch { }
-  };
-}
-}
+      style.remove();
+    };
+  }
 
   async function makePasswordPdf(pwd: string) {
     try {
@@ -259,17 +228,17 @@ export default function App() {
       let w: number;
       let h: number;
       try {
-        const dpr = Math.max(2, (window.devicePixelRatio || 1));
-const canvas = await (window as any).html2canvas(root, {
-  backgroundColor: "#ffffff",
-  scale: dpr * 1.5,
-  useCORS: true,
-  allowTaint: false,
-  width: root.scrollWidth,
-  height: root.scrollHeight,
-  windowWidth: root.scrollWidth,
-  windowHeight: root.scrollHeight
-});
+        const canvas = await (window as any).html2canvas(root, {
+          backgroundColor: '#ffffff',
+          useCORS: true,
+          allowTaint: false,
+          letterRendering: true,
+          scale: Math.max(2, Math.floor(window.devicePixelRatio || 1)),
+          scrollX: 0,
+          scrollY: 0,
+          windowWidth: root.scrollWidth,
+          windowHeight: root.scrollHeight,
+        });
         dataUrl = canvas.toDataURL("image/png");
         w = canvas.width; h = canvas.height;
       } catch (e) {
