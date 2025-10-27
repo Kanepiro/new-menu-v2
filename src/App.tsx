@@ -137,23 +137,6 @@ export default function App() {
 
   useEffect(() => {
     if (!pdfOpen) { setKeyboardOpen(false);
-  // Enforce integer font-size/line-height on the UI root at all times
-  useEffect(() => {
-    try {
-      const root = document.querySelector('[data-capture-root]') as HTMLElement | null;
-      if (!root) return;
-      const apply = () => applyIntegerTypography(root);
-      apply();
-      const onResize = () => apply();
-      window.addEventListener('resize', onResize);
-      const onVisibility = () => requestAnimationFrame(apply);
-      document.addEventListener('visibilitychange', onVisibility);
-      return () => {
-        window.removeEventListener('resize', onResize);
-        document.removeEventListener('visibilitychange', onVisibility);
-      };
-    } catch {}
-  }, []);
  setKbPad(0); return; }
     const vv: any = (window as any).visualViewport;
     const threshold = 120; // px: treat as keyboard if viewport reduced beyond this
@@ -373,17 +356,6 @@ export default function App() {
   setRows(gs.map((g) => ({ group: g, index: 0 } as Row)));
 }
 
-// --- Integer typography (normal time) ---
-function applyIntegerTypography(root: HTMLElement) {
-  try {
-    const cs = window.getComputedStyle(root);
-    const fs = parseFloat(cs.fontSize) || 16;
-    // If line-height is "normal" or non-px, approximate with 1.4 * font-size
-    const lhRaw = cs.lineHeight;
-    let lh = parseFloat(lhRaw);
-    if (!isFinite(lh)) {
-      lh = fs * 1.4;
-    }
     const basePx = Math.max(Math.round(fs), 10);
     const linePx = Math.max(Math.round(lh), basePx);
     // Apply as inline style only to the capture root to avoid global side effects
