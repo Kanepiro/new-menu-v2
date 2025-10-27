@@ -536,7 +536,7 @@ const fname = String(d.getMonth()+1).padStart(2,"0")
       </div>
     </div>
   </div>
-)}</div>
+)}
       <div data-capture-hide className="h-[calc(env(safe-area-inset-bottom,0px)+6.5rem)]"></div>
       </main>
     </div>
