@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import type { Group, MenuItem } from "./menuOptions";
 import { MENU_ITEMS_DEFAULT, byGroup, groupsOf } from "./menuOptions";
 // ---- Versioning ----
-const FIXED_VERSION_TEXT = "v2.1.035";
+const FIXED_VERSION_TEXT = "v2.1.031";
 const VERSION_PREFIX = "2.1"; // major.minor
 const STORAGE_VERSION_PATCH = "menu.version.patch";
 function loadVersionPatch(): number {
@@ -228,20 +228,7 @@ export default function App() {
       let w: number;
       let h: number;
       try {
-        const canvas = await (window as any).const rect = root.getBoundingClientRect();
-const scale = Math.max(2, Math.min(3, Math.ceil((window.devicePixelRatio || 2))));
-const canvas = await (window as any).html2canvas(root, {
-  backgroundColor: "#ffffff",
-  useCORS: true,
-  allowTaint: true,
-  scale,
-  x: Math.floor(rect.left + window.scrollX),
-  y: Math.floor(rect.top + window.scrollY),
-  scrollX: 0,
-  scrollY: 0,
-  windowWidth: Math.ceil(root.scrollWidth),
-  windowHeight: Math.ceil(root.scrollHeight),
-});
+        const canvas = await (window as any).html2canvas(root, { foreignObjectRendering: true, scale: 1, backgroundColor: "#ffffff", useCORS: true, letterRendering: true, scrollX: 0, scrollY: 0, windowWidth: root.scrollWidth, windowHeight: root.scrollHeight });
         dataUrl = canvas.toDataURL("image/png");
         w = canvas.width; h = canvas.height;
       } catch (e) {
