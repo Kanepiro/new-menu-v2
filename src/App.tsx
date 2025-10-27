@@ -333,7 +333,10 @@ function applyCaptureStyles(rootEl?: HTMLElement) {
 
       const pad = (n: number) => String(n).padStart(2, "0");
       const d = new Date();
-      const fname = `${String(new Date().getMonth()+1).padStart(2,"0")}${String(new Date().getDate()).padStart(2,"0")}ｰ${String(new Date().getHours()).padStart(2,"0")}${String(new Date().getMinutes()).padStart(2,"0")}.pdf`;
+const fname = String(d.getMonth()+1).padStart(2,"0")
+  + String(d.getDate()).padStart(2,"0") + "_" 
+  + String(d.getHours()).padStart(2,"0")
+  + String(d.getMinutes()).padStart(2,"0") + ".pdf";
 
       await new Promise<void>((resolve) => pdf.download(fname, resolve));
 
