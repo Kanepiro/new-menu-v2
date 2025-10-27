@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import type { Group, MenuItem } from "./menuOptions";
 import { MENU_ITEMS_DEFAULT, byGroup, groupsOf } from "./menuOptions";
 // ---- Versioning ----
-const FIXED_VERSION_TEXT = "v2.1.032";
+const FIXED_VERSION_TEXT = "v2.1.031";
 const VERSION_PREFIX = "2.1"; // major.minor
 const STORAGE_VERSION_PATCH = "menu.version.patch";
 function loadVersionPatch(): number {
@@ -187,52 +187,20 @@ export default function App() {
 
   const nextTick = () => new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
 
-  
-function applyCaptureStyles(rootEl?: HTMLElement) {
-  const style = document.createElement('style');
-  style.id = '__capture_styles__';
-  style.textContent = [
-    "html, body { -webkit-text-size-adjust: 100%; }",
-    "* { font-synthesis: none; }"
-  ].join("\n");
-  document.head.appendChild(style);
-
-  const target = (rootEl || document.querySelector('[data-capture-root]') as HTMLElement || document.getElementById('capture') as HTMLElement || document.body) as HTMLElement;
-
-  const transformed: Array<{el: HTMLElement, prev: string}> = [];
-  const fontPatched: Array<{el: HTMLElement, prevFont: string, prevLH: string, prevLS: string}> = [];
-
-  if (target) {
-    const all = target.querySelectorAll<HTMLElement>('*');
-    all.forEach((el) => {
-      const cs = window.getComputedStyle(el);
-      if (cs.transform && cs.transform !== 'none') {
-        transformed.push({ el, prev: el.style.transform });
-        el.style.transform = 'none';
-      }
-      const fs = cs.fontSize || '';
-      const lh = cs.lineHeight || '';
-      const ls = cs.letterSpacing || '';
-      if (fs.endsWith('px')) el.style.fontSize = Math.round(parseFloat(fs)) + 'px';
-      if (lh !== 'normal') {
-        if (lh.endsWith('px')) el.style.lineHeight = Math.round(parseFloat(lh)) + 'px';
-        else if (/^\d+(\.\d+)?$/.test(lh)) el.style.lineHeight = String(Math.round(parseFloat(lh)));
-      }
-      if (ls.endsWith('px')) el.style.letterSpacing = Math.round(parseFloat(ls)) + 'px';
-      fontPatched.push({ el, prevFont: el.style.fontSize, prevLH: el.style.lineHeight, prevLS: el.style.letterSpacing });
-    });
-  }
-
-  return () => {
-    transformed.forEach(({el, prev}) => { el.style.transform = prev || ''; });
-    fontPatched.forEach(({el, prevFont, prevLH, prevLS}) => {
-      el.style.fontSize = prevFont || '';
-      el.style.lineHeight = prevLH || '';
-      el.style.letterSpacing = prevLS || '';
-    });
-    style.remove();
-  };
-}
+  function applyCaptureStyles() {
+    const style = document.createElement('style');
+    style.id = '__capture_styles__';
+    style.textContent = `
+      html, body { -webkit-text-size-adjust: 100%; }
+      * { font-synthesis: none; }
+      /* neutralize fixed to avoid vertical misalignment */
+      .fixed, [data-fixed="true"], footer { position: static !important; }
+      [data-capture-root] { min-height: auto !important; padding: 0 !important; }
+      main { padding-bottom: 0 !important; flex: none !important; }
+      header { padding-top: 0 !important; margin-top: 0 !important; }
+      [data-capture-root] .space-y-3 { margin-bottom: 0 !important; }
+      [data-capture-root] [data-empty="true"] { display: none !important; }
+      [data-capture-root] [data-capture-hide] { display: none !important; }
     `;
     document.head.appendChild(style);
     // Also force footer to static if exists
@@ -250,30 +218,19 @@ function applyCaptureStyles(rootEl?: HTMLElement) {
       setPdfBusy(true);
       await ensurePdfDeps();
       await nextTick();
-      const root = (document.getElementById("capture") as HTMLElement) || (document.querySelector('[data-capture-root]') as HTMLElement) || (document.getElementById("root") as HTMLElement) || (document.body as HTMLElement);
+      const root = (document.getElementById("capture") as HTMLElement) || (document.getElementById("root") as HTMLElement) || (document.body as HTMLElement);
       // Ensure top-left origin and stable layout
       window.scrollTo(0, 0);
       if (!root) { throw new Error("capture root not found"); }
-      const cleanup = applyCaptureStyles(root);
+      const cleanup = applyCaptureStyles();
       // Declare outside try so we can use them after cleanup
       let dataUrl: string;
       let w: number;
       let h: number;
       try {
-        const scale = 2; // integer scale for hi-res
-        const r = root.getBoundingClientRect();
-        const x = Math.round(r.left), y = Math.round(r.top);
-        const wpx = Math.round(r.width), hpx = Math.round(r.height);
-        const canvas = await (window as any).html2canvas(root, {
-          scale,
-          x, y, width: wpx, height: hpx,
-          useCORS: true,
-          backgroundColor: null,
-          windowWidth: root.scrollWidth,
-          windowHeight: root.scrollHeight
-        });
+        const canvas = await (window as any).html2canvas(root, { foreignObjectRendering: true, scale: 1, backgroundColor: "#ffffff", useCORS: true, letterRendering: true, scrollX: 0, scrollY: 0, windowWidth: root.scrollWidth, windowHeight: root.scrollHeight });
         dataUrl = canvas.toDataURL("image/png");
-        w = Math.floor(canvas.width); h = Math.floor(canvas.height);
+        w = canvas.width; h = canvas.height;
       } catch (e) {
       console.error('PDF failed', e);
       alert('PDF作成に失敗しました。' + (e && (e as any).message ? '\n' + (e as any).message : '\nもう一度お試しください。'));
@@ -282,7 +239,7 @@ function applyCaptureStyles(rootEl?: HTMLElement) {
       }
 
       const docDef: any = {
-        pageSize: { width: Math.floor(w), height: Math.floor(h) },
+        pageSize: { width: w, height: h },
         pageMargins: [0, 0, 0, 0],
         permissions: {
           printing: "none",
@@ -295,16 +252,13 @@ function applyCaptureStyles(rootEl?: HTMLElement) {
         },
         userPassword: pwd,
         ownerPassword: pwd,
-        content: [{ image: dataUrl, width: Math.floor(w), height: Math.floor(h) }],
+        content: [{ image: dataUrl, width: w, height: h }],
       };
       const pdf = (window as any).pdfMake.createPdf(docDef);
 
       const pad = (n: number) => String(n).padStart(2, "0");
       const d = new Date();
-const fname = String(d.getMonth()+1).padStart(2,"0")
-  + String(d.getDate()).padStart(2,"0") + "_" 
-  + String(d.getHours()).padStart(2,"0")
-  + String(d.getMinutes()).padStart(2,"0") + ".pdf";
+      const fname = `${String(new Date().getMonth()+1).padStart(2,"0")}${String(new Date().getDate()).padStart(2,"0")}ｰ${String(new Date().getHours()).padStart(2,"0")}${String(new Date().getMinutes()).padStart(2,"0")}.pdf`;
 
       await new Promise<void>((resolve) => pdf.download(fname, resolve));
 
