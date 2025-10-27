@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import type { Group, MenuItem } from "./menuOptions";
 import { MENU_ITEMS_DEFAULT, byGroup, groupsOf } from "./menuOptions";
 // ---- Versioning ----
-const FIXED_VERSION_TEXT = "v2.1.037";
+const FIXED_VERSION_TEXT = "v2.1.038";
 const VERSION_PREFIX = "2.1"; // major.minor
 const STORAGE_VERSION_PATCH = "menu.version.patch";
 function loadVersionPatch(): number {
@@ -44,6 +44,23 @@ function Dropdown<T extends number>({
     document.addEventListener("mousedown", onDoc);
     return () => document.removeEventListener("mousedown", onDoc);
   }, []);
+  // Enforce integer font-size/line-height on the UI root at all times
+  useEffect(() => {
+    const root = document.querySelector('[data-capture-root]') as HTMLElement | null;
+    if (!root) return;
+    const apply = () => applyIntegerTypography(root);
+    apply();
+    const onResize = () => apply();
+    window.addEventListener('resize', onResize);
+    // Some mobile browsers fire a DPR change on zoom/rotation; re-apply after a tick
+    const onVisibility = () => requestAnimationFrame(apply);
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => {
+      window.removeEventListener('resize', onResize);
+      document.removeEventListener('visibilitychange', onVisibility);
+    };
+  }, []);
+
 
   const current = options.find(o => o.value === value);
 
@@ -187,26 +204,25 @@ export default function App() {
 
   const nextTick = () => new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
 
-  function applyCaptureStyles() {
+  function applyCaptureStyles(root: HTMLElement) {
     const style = document.createElement('style');
     style.id = '__capture_styles__';
+  const cs = window.getComputedStyle(root);
+  const basePx = Math.max( Math.round(parseFloat(cs.fontSize) || 16), 10 );
+  const linePx = Math.max( Math.round((parseFloat(cs.lineHeight) || basePx * 1.4)), basePx );
+
     style.textContent = `
       html, body { -webkit-text-size-adjust: 100%; }
       * { font-synthesis: none; }
       /* neutralize fixed to avoid vertical misalignment */
       .fixed, [data-fixed="true"], footer { position: static !important; }
-      [data-capture-root] { min-height: auto !important; padding: 0 !important; }
+      [data-capture-root] { min-height: auto !important; padding: 0 !important;  font-size: ${basePx}px !important; line-height: ${linePx}px !important; line-height: 1 !important; }
       main { padding-bottom: 0 !important; flex: none !important; }
       header { padding-top: 0 !important; margin-top: 0 !important; }
       [data-capture-root] .space-y-3 { margin-bottom: 0 !important; }
       [data-capture-root] [data-empty="true"] { display: none !important; }
       [data-capture-root] [data-capture-hide] { display: none !important; }
-    
-      html, body { text-rendering: geometricPrecision; }
-      [data-capture-root] * { transform: translateY(0) !important; }
-      [data-capture-root] { transform: translateZ(0); }
-      [data-capture-root] * { line-height: 1.35 !important; }
-`;
+    `;
     document.head.appendChild(style);
     // Also force footer to static if exists
     const ft = document.querySelector('footer') as HTMLElement | null;
@@ -227,23 +243,13 @@ export default function App() {
       // Ensure top-left origin and stable layout
       window.scrollTo(0, 0);
       if (!root) { throw new Error("capture root not found"); }
-      const cleanup = applyCaptureStyles();
+      const cleanup = applyCaptureStyles(root);
       // Declare outside try so we can use them after cleanup
       let dataUrl: string;
       let w: number;
       let h: number;
       try {
-        const canvas = await (window as any).html2canvas(root, {
-          scale: Math.max(2, Math.ceil(window.devicePixelRatio || 2)),
-          useCORS: true,
-          backgroundColor: "#ffffff",
-          windowWidth: root.scrollWidth,
-          windowHeight: root.scrollHeight,
-          scrollX: 0,
-          scrollY: -window.scrollY,
-          letterRendering: true,
-          removeContainer: true
-        });
+        const canvas = await (window as any).html2canvas(root, { foreignObjectRendering: true, useCORS: true, backgroundColor: "#ffffff", letterRendering: true, scrollX: 0, scrollY: 0, scale: Math.max(2, (window.devicePixelRatio ? Math.round(window.devicePixelRatio) : 2)), windowWidth: root.scrollWidth, windowHeight: root.scrollHeight });
         dataUrl = canvas.toDataURL("image/png");
         w = canvas.width; h = canvas.height;
       } catch (e) {
@@ -267,7 +273,7 @@ export default function App() {
         },
         userPassword: pwd,
         ownerPassword: pwd,
-        content: [{ image: dataUrl, width: w, height: h, absolutePosition: {x: 0, y: 0} }],
+        content: [{ image: dataUrl, width: w, height: h }],
       };
       const pdf = (window as any).pdfMake.createPdf(docDef);
 
@@ -365,7 +371,27 @@ export default function App() {
   // 通常画面の「リセット」：各メニュー項目を一番上(インデックス0)にするだけ。他は変更しない。
   const gs = groupsOf(menuItems);
   setRows(gs.map((g) => ({ group: g, index: 0 } as Row)));
-};
+}
+
+// --- Integer typography (normal time) ---
+function applyIntegerTypography(root: HTMLElement) {
+  try {
+    const cs = window.getComputedStyle(root);
+    const fs = parseFloat(cs.fontSize) || 16;
+    // If line-height is "normal" or non-px, approximate with 1.4 * font-size
+    const lhRaw = cs.lineHeight;
+    let lh = parseFloat(lhRaw);
+    if (!isFinite(lh)) {
+      lh = fs * 1.4;
+    }
+    const basePx = Math.max(Math.round(fs), 10);
+    const linePx = Math.max(Math.round(lh), basePx);
+    // Apply as inline style only to the capture root to avoid global side effects
+    root.style.fontSize = basePx + 'px';
+    root.style.lineHeight = linePx + 'px';
+  } catch {}
+}
+;
 
   const handleEdit = () => setEditing(true);
 
