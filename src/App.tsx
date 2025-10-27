@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import type { Group, MenuItem } from "./menuOptions";
 import { MENU_ITEMS_DEFAULT, byGroup, groupsOf } from "./menuOptions";
 // ---- Versioning ----
-const FIXED_VERSION_TEXT = "v2.1.032";
+const FIXED_VERSION_TEXT = "v2.1.033";
 const VERSION_PREFIX = "2.1"; // major.minor
 const STORAGE_VERSION_PATCH = "menu.version.patch";
 function loadVersionPatch(): number {
@@ -280,7 +280,7 @@ async function makePasswordPdf(pwd: string) {
       let w: number;
       let h: number;
       try {
-        const scale = 2; // integer scale for hi-res
+        const scale = 3; // integer scale for hi-res
         const r = root.getBoundingClientRect();
         const x = Math.round(r.left), y = Math.round(r.top);
         const wpx = Math.round(r.width), hpx = Math.round(r.height);
@@ -302,6 +302,7 @@ async function makePasswordPdf(pwd: string) {
       }
 
       const docDef: any = {
+        compress: true,
         pageSize: { width: Math.floor(w), height: Math.floor(h) },
         pageMargins: [0, 0, 0, 0],
         permissions: {
