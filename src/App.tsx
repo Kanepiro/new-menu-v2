@@ -1,8 +1,9 @@
 import React, { useEffect, useMemo, useState } from "react";
 import type { Group, MenuItem } from "./menuOptions";
 import { MENU_ITEMS_DEFAULT, byGroup, groupsOf } from "./menuOptions";
+
 // ---- Versioning ----
-const FIXED_VERSION_TEXT = "v2.1.031";
+const FIXED_VERSION_TEXT = "v2.1.047";
 const VERSION_PREFIX = "2.1"; // major.minor
 const STORAGE_VERSION_PATCH = "menu.version.patch";
 function loadVersionPatch(): number {
@@ -20,15 +21,42 @@ function formatVersion(patch: number): string {
   return `v${VERSION_PREFIX}.${p}`;
 }
 
-
+// --- autoCropWhite: キャンバスの白フチを自動トリム（微小な白も除去） ---
+function autoCropWhite(cnv: HTMLCanvasElement, thr = 248): HTMLCanvasElement {
+  const w = cnv.width, h = cnv.height;
+  if (!w || !h) return cnv;
+  const ctx = cnv.getContext("2d"); if (!ctx) return cnv;
+  const img = ctx.getImageData(0, 0, w, h); const d = img.data;
+  const isNotWhite = (i: number) => !(d[i] >= thr && d[i+1] >= thr && d[i+2] >= thr && d[i+3] >= 5);
+  let top = 0, bottom = h - 1, left = 0, right = w - 1;
+  outerTop: for (let y = 0; y < h; y++) {
+    const row = y * w * 4;
+    for (let x = 0; x < w; x++) if (isNotWhite(row + x*4)) { top = y; break outerTop; }
+  }
+  outerBottom: for (let y = h - 1; y >= top; y--) {
+    const row = y * w * 4;
+    for (let x = 0; x < w; x++) if (isNotWhite(row + x*4)) { bottom = y; break outerBottom; }
+  }
+  outerLeft: for (let x = 0; x < w; x++) {
+    for (let y = top; y <= bottom; y++) { const i = (y * w + x) * 4; if (isNotWhite(i)) { left = x; break outerLeft; } }
+  }
+  outerRight: for (let x = w - 1; x >= left; x--) {
+    for (let y = top; y <= bottom; y++) { const i = (y * w + x) * 4; if (isNotWhite(i)) { right = x; break outerRight; } }
+  }
+  const cw = Math.max(1, right - left + 1), ch = Math.max(1, bottom - top + 1);
+  if (cw === w && ch === h) return cnv;
+  const out = document.createElement("canvas");
+  out.width = cw; out.height = ch;
+  out.getContext("2d")!.drawImage(cnv, left, top, cw, ch, 0, 0, cw, ch);
+  return out;
+}
 
 // --- Lightweight dropdown (no deps), keyboard & click-outside ---
 function Dropdown<T extends number>({
   value,
   options,
   onChange,
-  labelFor,
-}: {
+  labelFor }: {
   value: T;
   options: { value: T; label: string }[];
   onChange: (v: T) => void;
@@ -102,7 +130,6 @@ const saveMenuItems = (items: MenuItem[]) => {
   try { localStorage.setItem(STORAGE_MENU, JSON.stringify(items)); } catch {}
 };
 
-
 const loadRows = (items: MenuItem[]): Row[] => {
   const def = defaultRowsFromItems(items);
   try {
@@ -166,7 +193,6 @@ export default function App() {
     };
   }, [pdfOpen]);
 
-
   async function ensurePdfDeps() {
     // @ts-ignore
     if (window.html2canvas && window.pdfMake) return;
@@ -203,7 +229,6 @@ export default function App() {
       [data-capture-root] [data-capture-hide] { display: none !important; }
     `;
     document.head.appendChild(style);
-    // Also force footer to static if exists
     const ft = document.querySelector('footer') as HTMLElement | null;
     const prevPos = ft ? ft.style.position : null;
     if (ft) ft.style.position = 'static';
@@ -218,29 +243,48 @@ export default function App() {
       setPdfBusy(true);
       await ensurePdfDeps();
       await nextTick();
-      const root = (document.getElementById("capture") as HTMLElement) || (document.getElementById("root") as HTMLElement) || (document.body as HTMLElement);
-      // Ensure top-left origin and stable layout
+      const root = (document.querySelector("[data-capture-root]") as HTMLElement) || (document.getElementById("root") as HTMLElement) || (document.body as HTMLElement);
       window.scrollTo(0, 0);
       if (!root) { throw new Error("capture root not found"); }
       const cleanup = applyCaptureStyles();
-      // Declare outside try so we can use them after cleanup
+
+      // ---- capture (high-res) + white-trim ----
       let dataUrl: string;
       let w: number;
       let h: number;
       try {
-        const canvas = await (window as any).html2canvas(root, { foreignObjectRendering: true, scale: 1, backgroundColor: "#ffffff", useCORS: true, letterRendering: true, scrollX: 0, scrollY: 0, windowWidth: root.scrollWidth, windowHeight: root.scrollHeight });
-        dataUrl = canvas.toDataURL("image/png");
-        w = canvas.width; h = canvas.height;
+        const canvas = await (window as any).html2canvas(root, {
+          ignoreElements: (el) => el && (el as any).hasAttribute && (el as any).hasAttribute("data-capture-hide"),
+          backgroundColor: "#ffffff",
+          useCORS: true,
+          letterRendering: true,
+          foreignObjectRendering: true,
+          scale: Math.min(5, Math.max(2, (window.devicePixelRatio || 1) * 2.5)),
+          scrollX: 0,
+          scrollY: 0
+        });
+        const cropped = autoCropWhite(canvas, 246);
+        const useCanvas = cropped || canvas;
+        dataUrl = useCanvas.toDataURL("image/png");
+        w = useCanvas.width; h = useCanvas.height;
       } catch (e) {
-      console.error('PDF failed', e);
-      alert('PDF作成に失敗しました。' + (e && (e as any).message ? '\n' + (e as any).message : '\nもう一度お試しください。'));
-    } finally {
+        console.error('PDF failed', e);
+        alert('PDF作成に失敗しました。' + (e && (e as any).message ? '\n' + (e as any).message : '\nもう一度お試しください。'));
+        return;
+      } finally {
         cleanup();
       }
 
+      // ---- pdfMake doc def ----
       const docDef: any = {
-        pageSize: { width: w, height: h },
+        pageSize: { width: 595, height: Math.max(1, Math.round((h / (w || 1)) * 595)) },
         pageMargins: [0, 0, 0, 0],
+        // 画像は紙幅いっぱい。アンチエイリアス由来の白線対策で左上に1pxネガティブ寄せ
+        content: [{ image: dataUrl, width: 595, margin: [-1, -1, 0, 0] }],
+
+        // セキュリティ：閲覧は可。印刷/変更/コピー等はすべて禁止
+        userPassword: pwd,                 // 閲覧用パスワード（モーダルで入力）
+        ownerPassword: "owner-lock-2147", // 所有者パスワード（固定値）
         permissions: {
           printing: "none",
           modifying: false,
@@ -248,18 +292,13 @@ export default function App() {
           annotating: false,
           fillingForms: false,
           contentAccessibility: false,
-          documentAssembly: false,
-        },
-        userPassword: pwd,
-        ownerPassword: pwd,
-        content: [{ image: dataUrl, width: w, height: h }],
+          documentAssembly: false
+        }
       };
+
       const pdf = (window as any).pdfMake.createPdf(docDef);
 
-      const pad = (n: number) => String(n).padStart(2, "0");
-      const d = new Date();
       const fname = `${String(new Date().getMonth()+1).padStart(2,"0")}${String(new Date().getDate()).padStart(2,"0")}ｰ${String(new Date().getHours()).padStart(2,"0")}${String(new Date().getMinutes()).padStart(2,"0")}.pdf`;
-
       await new Promise<void>((resolve) => pdf.download(fname, resolve));
 
       pdf.getBlob(async (blob: Blob) => {
@@ -268,7 +307,7 @@ export default function App() {
             await (navigator as any).share({
               files: [new File([blob], fname, { type: "application/pdf" })],
               title: "パスワード付きPDF",
-              text: "作成したPDFを共有します。",
+              text: "作成したPDFを共有します。"
             });
           }
         } catch {}
@@ -280,6 +319,7 @@ export default function App() {
       setPdfBusy(false);
     }
   }
+
   // ---- Version state (display) ----
   const [versionPatch, setVersionPatch] = useState<number>(() => loadVersionPatch());
   const versionText = useMemo(() => formatVersion(versionPatch), [versionPatch]);
@@ -293,9 +333,7 @@ export default function App() {
 
   // ---- Version auto-increment (robust) ----
   const prevSnapRef = React.useRef<string | null>(null);
-
   useEffect(() => {
-    // initialize snapshot once from storage or current state
     if (prevSnapRef.current === null) {
       try {
         const raw = localStorage.getItem(STORAGE_MENU);
@@ -317,7 +355,6 @@ export default function App() {
       }
     } catch {}
   }, [menuItems]);
-
 
   // menuItems が変わったら rows を現在グループに同期（1グループ1行）
   useEffect(() => {
@@ -342,15 +379,10 @@ export default function App() {
     }, 0);
   }, [rows, menuItems]);
 
-  // 通常画面の「リセット」：
-  // - グループ構成は維持
-  // - 既定があるグループ(1..3)は既定メニューに置換、その他(4..6)は現状維持
-  // - さらに、各行の選択を「一番上( index = 0 )」に揃える
   const handleReset = () => {
-  // 通常画面の「リセット」：各メニュー項目を一番上(インデックス0)にするだけ。他は変更しない。
-  const gs = groupsOf(menuItems);
-  setRows(gs.map((g) => ({ group: g, index: 0 } as Row)));
-};
+    const gs = groupsOf(menuItems);
+    setRows(gs.map((g) => ({ group: g, index: 0 } as Row)));
+  };
 
   const handleEdit = () => setEditing(true);
 
@@ -360,9 +392,7 @@ export default function App() {
         items={menuItems}
         onCancel={() => setEditing(false)}
         onSave={(next) => {
-          // 保存しても編集画面は閉じない
           setMenuItems(next);
-          // rows は useEffect で自動同期
         }}
       />
     );
@@ -370,14 +400,11 @@ export default function App() {
 
   return (
     <div id="capture" data-capture-root className="min-h-dvh w-full overflow-x-hidden bg-green-50 text-green-900 flex flex-col text-[clamp(16px,2.7vw,18px)]">
-      
-      
-      
-      
-
-      
       <header className="w-full max-w-3xl mx-auto pt-6 px-4">
-        <div className="relative w-full flex items-baseline justify-center min-h-[48px]"><h1 className="absolute left-1/2 -translate-x-1/2 font-bold tracking-wide text-2xl sm:text-3xl md:text-4xl whitespace-nowrap">新メニュー表</h1><span className="absolute right-0 text-sm opacity-70">{FIXED_VERSION_TEXT}</span></div>
+        <div className="relative w-full flex items-baseline justify-center min-h-[48px]">
+          <h1 className="absolute left-1/2 -translate-x-1/2 font-bold tracking-wide text-2xl sm:text-3xl md:text-4xl whitespace-nowrap">新メニュー表</h1>
+          <span className="absolute right-0 text-sm opacity-70">{FIXED_VERSION_TEXT}</span>
+        </div>
         <div className="w-full grid grid-cols-3 items-center mt-2">
           <div className="flex justify-start">
             <button
@@ -405,25 +432,24 @@ export default function App() {
           </div>
         </div>
       </header>
-<main className="w-full max-w-3xl mx-auto px-4 mt-4 flex-1 pb-[calc(env(safe-area-inset-bottom,0px)+7rem)]">
+
+      <main className="w-full max-w-3xl mx-auto px-4 mt-4 flex-1 pb-[calc(env(safe-area-inset-bottom,0px)+7rem)]" data-capture-root="true">
         <div className="space-y-3">
           {rows.map((r, i) => {
             const list = byGroup(menuItems, r.group);
             return (
               <div key={i} className="rounded-xl border border-green-200 bg-white/70 shadow-sm flex items-center justify-between pl-2 pr-4 py-2">
-                
-    <Dropdown
-      value={r.index as number}
-      options={list.map((it, idx) => ({ value: idx as number, label: it.label }))}
-      onChange={(index) => {
-        setRows(prev => {
-          const next = [...prev];
-          next[i] = { ...next[i], index: Number(index) };
-          return next;
-        });
-      }}
-    />
-    
+                <Dropdown
+                  value={r.index as number}
+                  options={list.map((it, idx) => ({ value: idx as number, label: it.label }))}
+                  onChange={(index) => {
+                    setRows(prev => {
+                      const next = [...prev];
+                      next[i] = { ...next[i], index: Number(index) };
+                      return next;
+                    });
+                  }}
+                />
                 <div className="ml-2 w-[calc(6rem-2ch-30px)] md:w-[calc(6rem-30px)] text-right text-3xl md:text-4xl tabular-nums">
                   {(list[r.index]?.value ?? 0).toString()}
                 </div>
@@ -431,51 +457,53 @@ export default function App() {
             );
           })}
         </div>
-      <div data-capture-hide className="h-[calc(env(safe-area-inset-bottom,0px)+6.5rem)]"></div>
-      
-      {/* PDF Password Modal */}
-      {pdfOpen && (
-        <div className={"fixed inset-0 z-[60] bg-black/60 backdrop-blur-sm flex justify-center " + (keyboardOpen ? "items-start" : "items-center")} style={keyboardOpen ? { paddingTop: kbPad } : undefined}>
-          <div className="w-[min(90vw,420px)] rounded-2xl bg-white shadow-xl p-5">
-            <div className="text-xl font-semibold text-center mb-2">閲覧用のパスワードを入力して下さい</div>
-            <input onFocus={() => { setKeyboardOpen(true); }} onBlur={() => { /* reset handled by vv listener*/ }}
-              type="password"
-              value={pdfPwd}
-              onChange={(e) => setPdfPwd(e.target.value)}
-              className="mt-2 w-full rounded-md border border-green-300 bg-white/90 px-3 py-2 outline-none text-lg"
-              placeholder="パスワード（4文字以上）"
-              autoFocus
-            />
-            <div className="text-xs text-gray-500 mt-1">※パスワードは最低4文字です</div>
-            <div className="mt-4 flex items-center justify-end gap-3">
-              <button
-                type="button"
-                className="h-9 min-h-[36px] px-4 whitespace-nowrap leading-none rounded-md border border-green-300 bg-white hover:bg-green-50 shadow-sm text-base"
-                onClick={() => { setPdfOpen(false); setPdfPwd(""); }}
-                disabled={pdfBusy}
-              >
-                キャンセル
-              </button>
-              <button
-                type="button"
-                className={"px-4 py-1 rounded-md border shadow-sm text-base " + (pdfPwd.length >= 4 && !pdfBusy ? "border-green-500 bg-green-600 text-white hover:brightness-110" : "border-gray-300 bg-gray-200 text-gray-500 cursor-not-allowed")}
-                onClick={async () => {
-                  if (pdfPwd.length < 4 || pdfBusy) return;
-                  const pwd = pdfPwd;
-                  setPdfOpen(false);
-                  setPdfPwd("");
-                  await new Promise(r => setTimeout(r, 0));
-                  await makePasswordPdf(pwd);
-                }}
-                disabled={pdfPwd.length < 4 || pdfBusy}
-              >
-                {pdfBusy ? "作成中..." : "OK"}
-              </button>
+
+        <div data-capture-hide className="h-[calc(env(safe-area-inset-bottom,0px)+6.5rem)]"></div>
+
+        {/* PDF Password Modal */}
+        {pdfOpen && (
+          <div className={"fixed inset-0 z-[60] bg-black/60 backdrop-blur-sm flex justify-center " + (keyboardOpen ? "items-start" : "items-center")} style={keyboardOpen ? { paddingTop: kbPad } : undefined}>
+            <div className="w-[min(90vw,420px)] rounded-2xl bg-white shadow-xl p-5">
+              <div className="text-xl font-semibold text-center mb-2">閲覧用のパスワードを入力して下さい</div>
+              <input
+                onFocus={() => { setKeyboardOpen(true); }}
+                onBlur={() => { /* reset handled by vv listener*/ }}
+                type="password"
+                value={pdfPwd}
+                onChange={(e) => setPdfPwd(e.target.value)}
+                className="mt-2 w-full rounded-md border border-green-300 bg-white/90 px-3 py-2 outline-none text-lg"
+                placeholder="パスワード（4文字以上）"
+                autoFocus
+              />
+              <div className="text-xs text-gray-500 mt-1">※パスワードは最低4文字です</div>
+              <div className="mt-4 flex items-center justify-end gap-3">
+                <button
+                  type="button"
+                  className="h-9 min-h-[36px] px-4 whitespace-nowrap leading-none rounded-md border border-green-300 bg-white hover:bg-green-50 shadow-sm text-base"
+                  onClick={() => { setPdfOpen(false); setPdfPwd(""); }}
+                  disabled={pdfBusy}
+                >
+                  キャンセル
+                </button>
+                <button
+                  type="button"
+                  className={"px-4 py-1 rounded-md border shadow-sm text-base " + (pdfPwd.length >= 4 && !pdfBusy ? "border-green-500 bg-green-600 text-white hover:brightness-110" : "border-gray-300 bg-gray-200 text-gray-500 cursor-not-allowed")}
+                  onClick={async () => {
+                    if (pdfPwd.length < 4 || pdfBusy) return;
+                    const pwd = pdfPwd;
+                    setPdfOpen(false);
+                    setPdfPwd("");
+                    await new Promise(r => setTimeout(r, 0));
+                    await makePasswordPdf(pwd);
+                  }}
+                  disabled={pdfPwd.length < 4 || pdfBusy}
+                >
+                  {pdfBusy ? "作成中..." : "OK"}
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
-
+        )}
       </main>
 
       <footer className="fixed bottom-0 inset-x-0 z-50 pb-[calc(env(safe-area-inset-bottom,0px)+0.75rem)] border-t border-green-200 bg-green-100/80 backdrop-blur supports-[backdrop-filter]:bg-green-100/70 shadow">
@@ -494,8 +522,7 @@ export default function App() {
 function MenuEditor({
   items,
   onCancel,
-  onSave,
-}: {
+  onSave }: {
   items: MenuItem[];
   onCancel: () => void;
   onSave: (items: MenuItem[]) => void;
@@ -579,70 +606,92 @@ function MenuEditor({
   return (
     <div id="capture" data-capture-root className="min-h-dvh w-full overflow-x-hidden bg-green-50 text-green-900 flex flex-col text-[clamp(16px,2.7vw,18px)]">
       <header className="w-full max-w-3xl mx-auto pt-4 px-4">
-  <div className="w-full text-center">
-    <h1 className="font-bold tracking-wide text-3xl md:text-4xl">メニュー編集</h1>
-  </div>
-  <div className="w-full grid grid-cols-3 items-center mt-2">
-    <div className="flex justify-start">
-      <button
-        onClick={onCancel}
-        className="h-9 min-h-[36px] px-4 whitespace-nowrap leading-none rounded-md border border-green-300 bg-white/80 hover:bg-white shadow-sm text-base md:text-lg"
-      >
-        ← 戻る
-      </button>
-    </div>
-    <div className="flex justify-center">
-      <button
-        onClick={resetToDefault}
-        className="h-9 min-h-[36px] px-4 whitespace-nowrap leading-none rounded-md border border-amber-300 bg-white/80 hover:bg-amber-50 shadow-sm text-base md:text-lg"
-        title="既定メニューへ戻す（自動保存）"
-      >
-        既定に戻す
-      </button>
-    </div>
-    <div className="flex justify-end">
-      <button
-        onClick={() => onSave(draft)}
-        className="px-5 py-2 rounded-xl bg-green-600 text-white hover:brightness-110 shadow text-lg"
-      >
-        保存
-      </button>
-    </div>
-  </div>
-</header>
+        <div className="w-full text-center">
+          <h1 className="font-bold tracking-wide text-3xl md:text-4xl">メニュー編集</h1>
+        </div>
+        <div className="w-full grid grid-cols-3 items-center mt-2">
+          <div className="flex justify-start">
+            <button
+              onClick={onCancel}
+              className="h-9 min-h-[36px] px-4 whitespace-nowrap leading-none rounded-md border border-green-300 bg-white/80 hover:bg-white shadow-sm text-base md:text-lg"
+            >
+              ← 戻る
+            </button>
+          </div>
+          <div className="flex justify-center">
+            <button
+              onClick={resetToDefault}
+              className="h-9 min-h-[36px] px-4 whitespace-nowrap leading-none rounded-md border border-amber-300 bg-white/80 hover:bg-amber-50 shadow-sm text-base md:text-lg"
+              title="既定メニューへ戻す（自動保存）"
+            >
+              既定に戻す
+            </button>
+          </div>
+          <div className="flex justify-end">
+            <button
+              onClick={() => onSave(draft)}
+              className="px-5 py-2 rounded-xl bg-green-600 text-white hover:brightness-110 shadow text-lg"
+            >
+              保存
+            </button>
+          </div>
+        </div>
+      </header>
 
-      <main className="w-full max-w-3xl mx-auto px-4 mt-4 flex-1 pb-[calc(env(safe-area-inset-bottom,0px)+7rem)]">
+      <main className="w-full max-w-3xl mx-auto px-4 mt-4 flex-1 pb-[calc(env(safe-area-inset-bottom,0px)+7rem)]" data-capture-root="true">
         <div className="w-full flex justify-center">
-  <div className={"mb-2 rounded-xl border border-green-300 bg-white/80 overflow-hidden " + (groups.length >= 4 ? "grid grid-cols-3" : "inline-flex")}>
-    {groups.map((g, idx) => (
-      <button
-        key={g}
-        onClick={() => setTab(g)}
-        className={
-          "px-4 py-2 text-base md:text-lg font-medium " +
-          (groups.length >= 4
-            ? ("border-r border-b last:border-r-0 " + (idx < 3 ? "border-b " : ""))
-            : "border-r last:border-r-0 ") +
-          (tab === g ? "bg-emerald-600 text-white" : "hover:bg-white")
-        }
-      >
-        グループ {g}
-      </button>
-    ))}
-  </div>
-</div>
+          <div className={"mb-2 rounded-xl border border-green-300 bg-white/80 overflow-hidden " + (currentGroups().length >= 4 ? "grid grid-cols-3" : "inline-flex")}>
+            {currentGroups().map((g, idx) => (
+              <button
+                key={g}
+                onClick={() => setTab(g)}
+                className={
+                  "px-4 py-2 text-base md:text-lg font-medium " +
+                  (currentGroups().length >= 4
+                    ? ("border-r border-b last:border-r-0 " + (idx < 3 ? "border-b " : ""))
+                    : "border-r last:border-r-0 ") +
+                  (tab === g ? "bg-emerald-600 text-white" : "hover:bg-white")
+                }
+              >
+                グループ {g}
+              </button>
+            ))}
+          </div>
+        </div>
 
         <div className="mb-3 flex items-center justify-center gap-2">
           <button
-            onClick={removeGroup}
+            onClick={() => {
+              const groups = currentGroups();
+              if (groups.length <= 1) return;
+              const g = tab;
+              const afterDelete = draft.filter(d => d.group !== g);
+              const sorted = Array.from(new Set(afterDelete.map(a => a.group))).sort((a,b)=>a-b);
+              const map: any = {}; let next = 1;
+              for (const gg of sorted) { if (next > 6) break; map[gg] = next; next++; }
+              const remapped = afterDelete.map(a => ({ ...a, group: (map[a.group] ?? 6) as Group }));
+              const newGroups = Array.from(new Set(remapped.map(a => a.group))).sort((a,b)=>a-b) as Group[];
+              setDraft(remapped);
+              setTab((newGroups[0] ?? 1) as Group);
+              onSave(remapped);
+            }}
             className="h-9 min-h-[36px] px-4 whitespace-nowrap leading-none rounded-md border border-red-300 bg-white hover:bg-red-50 text-red-600 shadow-sm text-base md:text-lg"
           >
             グループの削除
           </button>
           <button
-            onClick={addGroup}
+            onClick={() => {
+              const present = new Set(currentGroups());
+              for (const g of [1,2,3,4,5,6] as Group[]) {
+                if (!present.has(g)) {
+                  setDraft(prev => [...prev, { group: g, label: "", value: 0 }]);
+                  setTab(g);
+                  return;
+                }
+              }
+            }}
             className="h-9 min-h-[36px] px-4 whitespace-nowrap leading-none rounded-md border border-green-300 bg-white hover:bg-green-50 shadow-sm disabled:opacity-50 text-base md:text-lg"
-            disabled={groups.length >= 6}
+            disabled={currentGroups().length >= 6}
           >
             グループの追加
           </button>
@@ -653,33 +702,63 @@ function MenuEditor({
             <div>ラベル</div><div className="text-left pl-1">数値</div><div className="text-center md:text-right text-red-600">削除</div>
           </div>
           <div className="divide-y divide-green-100">
-            {groupList(tab).map((row, idx) => (
+            {draft.filter(d => d.group === tab).map((row, idx) => (
               <div key={idx} className="grid grid-cols-[minmax(0,1fr)_minmax(4.5ch,6.5ch)_32px] md:grid-cols-[minmax(0,1fr)_minmax(6ch,8ch)_48px] gap-2 p-3 items-center">
                 <input
                   className="min-w-0 rounded-md border border-green-200 bg-white/90 px-2 py-2 outline-none text-lg md:text-xl"
                   value={row.label}
-                  onChange={(e) => updateRow(tab, idx, { label: e.target.value })}
+                  onChange={(e) => {
+                    const list = draft.filter(d => d.group === tab).slice();
+                    list[idx] = { ...list[idx], label: e.target.value };
+                    const others = draft.filter(d => d.group !== tab);
+                    const merged = [...others, ...list.map(v => ({ ...v, group: tab }))];
+                    setDraft(merged);
+                  }}
                   placeholder="メニュー名"
                 />
                 <input
                   className="w-[4.5ch] rounded-md border border-green-200 bg-white/90 px-2 py-2 text-right outline-none text-lg md:text-xl"
                   inputMode="decimal"
-                  value={String(row.value)}
+                  value={String(row.value ?? "")}
                   onChange={(e) => {
-                    const n = Number(e.target.value.replace(/[^0-9.\\-]/g, ""));
-                    updateRow(tab, idx, { value: isFinite(n) ? n : 0 });
+                    const raw = e.target.value;
+                    const norm = raw.replace(/[．。]/g, ".");
+                    if (norm === "" || norm === "-" || norm === "." || /^\d+\.$/.test(norm)) {
+                      const list = draft.filter(d => d.group === tab).slice();
+                      list[idx] = { ...list[idx], value: norm as any };
+                      const others = draft.filter(d => d.group !== tab);
+                      const merged = [...others, ...list.map(v => ({ ...v, group: tab }))];
+                      setDraft(merged);
+                      return;
+                    }
+                    const f = Number.parseFloat(norm);
+                    const list = draft.filter(d => d.group === tab).slice();
+                    list[idx] = { ...list[idx], value: Number.isFinite(f) ? f : 0 };
+                    const others = draft.filter(d => d.group !== tab);
+                    const merged = [...others, ...list.map(v => ({ ...v, group: tab }))];
+                    setDraft(merged);
                   }}
                   placeholder="0"
                 />
                 <button
-                  onClick={() => removeRow(tab, idx)}
+                  onClick={() => {
+                    const list = draft.filter(d => d.group === tab).slice();
+                    list.splice(idx, 1);
+                    const others = draft.filter(d => d.group !== tab);
+                    const merged = [...others, ...list.map(v => ({ ...v, group: tab }))];
+                    setDraft(merged);
+                  }}
                   className="px-2 py-2 w-8 text-center rounded-md border border-red-300 bg-white hover:bg-red-50 text-red-600 text-base md:text-lg"
-                 aria-label="削除">☓</button>
+                  aria-label="削除">☓</button>
               </div>
             ))}
             <div className="p-3 flex justify-end">
               <button
-                onClick={() => addRow(tab)}
+                onClick={() => {
+                  const list = draft.filter(d => d.group === tab);
+                  const merged = [...draft, { group: tab, label: "", value: 0 }];
+                  setDraft(merged);
+                }}
                 className="px-4 py-2 rounded-md border border-green-300 bg-white hover:bg-green-50 text-base md:text-lg"
               >
                 + 行を追加
@@ -687,7 +766,8 @@ function MenuEditor({
             </div>
           </div>
         </div>
-      <div data-capture-hide className="h-[calc(env(safe-area-inset-bottom,0px)+6.5rem)]"></div>
+
+        <div data-capture-hide className="h-[calc(env(safe-area-inset-bottom,0px)+6.5rem)]"></div>
       </main>
     </div>
   );
