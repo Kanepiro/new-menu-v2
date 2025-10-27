@@ -244,13 +244,6 @@ export default function App() {
 }
 }
 
-    if (rootEl) { rootEl.style.transform = prevTransform || ""; }
-
-      if (ft) ft.style.position = prevPos || '';
-      style.remove();
-    };
-  }
-
   async function makePasswordPdf(pwd: string) {
     try {
       setPdfBusy(true);
