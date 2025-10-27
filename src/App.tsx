@@ -188,11 +188,13 @@ export default function App() {
   const nextTick = () => new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
 
   function applyCaptureStyles() {
+    try { const r = document.getElementById('capture'); if (r) r.setAttribute('data-capture-root','true'); } catch {}
     const style = document.createElement('style');
     style.id = '__capture_styles__';
     style.textContent = `
       html, body { -webkit-text-size-adjust: 100%; }
       * { font-synthesis: none; }
+      [data-capture-root], [data-capture-root] * { line-height: 1.0 !important; vertical-align: baseline !important; }
       /* neutralize fixed to avoid vertical misalignment */
       .fixed, [data-fixed="true"], footer { position: static !important; }
       [data-capture-root] { min-height: auto !important; padding: 0 !important; }
@@ -201,18 +203,6 @@ export default function App() {
       [data-capture-root] .space-y-3 { margin-bottom: 0 !important; }
       [data-capture-root] [data-empty="true"] { display: none !important; }
       [data-capture-root] [data-capture-hide] { display: none !important; }
-    
-      /* === Baseline stability pack (capture-only) === */
-      [data-capture-root] { -webkit-font-smoothing: antialiased !important; text-rendering: geometricPrecision !important; }
-      [data-capture-root] * { -webkit-font-smoothing: inherit !important; text-rendering: inherit !important; }
-      /* Avoid transform/filters that can shift baselines on rasterization */
-      [data-capture-root] * { transform: none !important; filter: none !important; }
-      /* Normalize line-height to reduce fractional leading */
-      [data-capture-root] * { line-height: normal !important; }
-      /* Freeze layout */
-      html, body { overflow: hidden !important; }
-      /* Ensure consistent letter spacing */
-      [data-capture-root] * { letter-spacing: 0 !important; }
     `;
     document.head.appendChild(style);
     // Also force footer to static if exists
@@ -229,33 +219,19 @@ export default function App() {
     try {
       setPdfBusy(true);
       await ensurePdfDeps();
+      await (document as any).fonts?.ready?.catch(() => {});
       await nextTick();
-      if (document && (document as any).fonts && (document as any).fonts.ready) { try { await (document as any).fonts.ready; } catch {} }
-      await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));
-const root = (document.getElementById("capture") as HTMLElement) || (document.getElementById("root") as HTMLElement) || (document.body as HTMLElement);
+      const root = (document.getElementById("capture") as HTMLElement) || (document.getElementById("root") as HTMLElement) || (document.body as HTMLElement);
       // Ensure top-left origin and stable layout
       window.scrollTo(0, 0);
-      try { baselineFixPx = Math.max(0, Math.round(parseFloat(getComputedStyle(root).fontSize) * 0.35)); } catch {}
       if (!root) { throw new Error("capture root not found"); }
       const cleanup = applyCaptureStyles();
       // Declare outside try so we can use them after cleanup
       let dataUrl: string;
       let w: number;
-      let baselineFixPx = 0;
       let h: number;
       try {
-        const canvas = await (window as any).html2canvas(root, {
-          backgroundColor: '#ffffff',
-          useCORS: true,
-          allowTaint: false,
-          letterRendering: true,
-          scale: Math.max(3, Math.ceil(window.devicePixelRatio || 1)),
-          scrollX: 0,
-          scrollY: 0,
-          windowWidth: root.scrollWidth,
-          windowHeight: root.scrollHeight,
-          logging: false,
-        });
+        const canvas = await (window as any).html2canvas(root, { foreignObjectRendering: true, scale: 1, backgroundColor: "#ffffff", useCORS: true, letterRendering: true, scrollX: 0, scrollY: 0, windowWidth: root.scrollWidth, windowHeight: root.scrollHeight  , scale: Math.max(2, Math.ceil((window.devicePixelRatio||1)) * 2), letterRendering: true, useCORS: true, backgroundColor: '#ffffff' });
         dataUrl = canvas.toDataURL("image/png");
         w = canvas.width; h = canvas.height;
       } catch (e) {
@@ -279,7 +255,7 @@ const root = (document.getElementById("capture") as HTMLElement) || (document.ge
         },
         userPassword: pwd,
         ownerPassword: pwd,
-        content: [{ image: dataUrl, width: w, height: h, margin: [0, -baselineFixPx, 0, 0] }],
+        content: [{ image: dataUrl, width: w, height: h }],
       };
       const pdf = (window as any).pdfMake.createPdf(docDef);
 
