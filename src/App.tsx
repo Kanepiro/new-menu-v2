@@ -187,11 +187,51 @@ export default function App() {
 
   const nextTick = () => new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
 
-  function applyCaptureStyles() {
-    const style = document.createElement('style');
-    style.id = '__capture_styles__';
-    style.textContent = `
-      html, body { -webkit-text-size-adjust: 100%; }
+  function applyCaptureStyles(rootEl?: HTMLElement) {
+  const style = document.createElement('style');
+  style.id = '__capture_styles__';
+  style.textContent = [
+    "html, body { -webkit-text-size-adjust: 100%; }",
+    "* { font-synthesis: none; }"
+  ].join("\n");
+  document.head.appendChild(style);
+
+  const target = (rootEl || document.querySelector('[data-capture-root]') as HTMLElement || document.getElementById('capture') as HTMLElement || document.body) as HTMLElement;
+
+  const transformed: Array<{el: HTMLElement, prev: string}> = [];
+  const fontPatched: Array<{el: HTMLElement, prevFont: string, prevLH: string, prevLS: string}> = [];
+
+  if (target) {
+    const all = target.querySelectorAll<HTMLElement>('*');
+    all.forEach((el) => {
+      const cs = window.getComputedStyle(el);
+      if (cs.transform && cs.transform !== 'none') {
+        transformed.push({ el, prev: el.style.transform });
+        el.style.transform = 'none';
+      }
+      const fs = cs.fontSize || '';
+      const lh = cs.lineHeight || '';
+      const ls = cs.letterSpacing || '';
+      if (fs.endsWith('px')) el.style.fontSize = Math.round(parseFloat(fs)) + 'px';
+      if (lh !== 'normal') {
+        if (lh.endsWith('px')) el.style.lineHeight = Math.round(parseFloat(lh)) + 'px';
+        else if (/^\d+(\.\d+)?$/.test(lh)) el.style.lineHeight = String(Math.round(parseFloat(lh)));
+      }
+      if (ls.endsWith('px')) el.style.letterSpacing = Math.round(parseFloat(ls)) + 'px';
+      fontPatched.push({ el, prevFont: el.style.fontSize, prevLH: el.style.lineHeight, prevLS: el.style.letterSpacing });
+    });
+  }
+
+  return () => {
+    transformed.forEach(({el, prev}) => { el.style.transform = prev || ''; });
+    fontPatched.forEach(({el, prevFont, prevLH, prevLS}) => {
+      el.style.fontSize = prevFont || '';
+      el.style.lineHeight = prevLH || '';
+      el.style.letterSpacing = prevLS || '';
+    });
+    style.remove();
+  };
+}
       * { font-synthesis: none; }
       /* neutralize fixed to avoid vertical misalignment */
       .fixed, [data-fixed="true"], footer { position: static !important; }
@@ -222,15 +262,26 @@ export default function App() {
       // Ensure top-left origin and stable layout
       window.scrollTo(0, 0);
       if (!root) { throw new Error("capture root not found"); }
-      const cleanup = applyCaptureStyles();
+      const cleanup = applyCaptureStyles(root);
       // Declare outside try so we can use them after cleanup
       let dataUrl: string;
       let w: number;
       let h: number;
       try {
-        const canvas = await (window as any).html2canvas(root, { foreignObjectRendering: true, scale: 1, backgroundColor: "#ffffff", useCORS: true, letterRendering: true, scrollX: 0, scrollY: 0, windowWidth: root.scrollWidth, windowHeight: root.scrollHeight });
+        const scale = 3;
+const r = root.getBoundingClientRect();
+const x = Math.round(r.left), y = Math.round(r.top);
+const wpx = Math.round(r.width), hpx = Math.round(r.height);
+const canvas = await (window as any).html2canvas(root, {
+  scale,
+  x, y, width: wpx, height: hpx,
+  useCORS: true,
+  backgroundColor: null,
+  windowWidth: root.scrollWidth,
+  windowHeight: root.scrollHeight
+});
         dataUrl = canvas.toDataURL("image/png");
-        w = canvas.width; h = canvas.height;
+        w = Math.floor(canvas.width); h = Math.floor(canvas.height);
       } catch (e) {
       console.error('PDF failed', e);
       alert('PDF作成に失敗しました。' + (e && (e as any).message ? '\n' + (e as any).message : '\nもう一度お試しください。'));
@@ -239,7 +290,7 @@ export default function App() {
       }
 
       const docDef: any = {
-        pageSize: { width: w, height: h },
+        pageSize: { width: Math.floor(w), height: Math.floor(h) },
         pageMargins: [0, 0, 0, 0],
         permissions: {
           printing: "none",
@@ -252,7 +303,7 @@ export default function App() {
         },
         userPassword: pwd,
         ownerPassword: pwd,
-        content: [{ image: dataUrl, width: w, height: h }],
+        content: [{ image: dataUrl, width: Math.floor(w), height: Math.floor(h) }],
       };
       const pdf = (window as any).pdfMake.createPdf(docDef);
 
@@ -285,6 +336,10 @@ export default function App() {
   const versionText = useMemo(() => formatVersion(versionPatch), [versionPatch]);
 
   const [menuItems, setMenuItems] = useState<MenuItem[]>(loadMenuItems);
+
+  // モバイル小数入力のための生文字バッファ
+  const [rawValues, setRawValues] = useState<Record<string, string>>({});
+  const keyFor = (g: Group, i: number) => `${g}:${i}`;
   const [rows, setRows] = useState<Row[]>(() => loadRows(loadMenuItems()));
   const [editing, setEditing] = useState(false);
 
