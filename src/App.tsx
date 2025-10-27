@@ -265,19 +265,7 @@ function applyCaptureStyles(rootEl?: HTMLElement) {
     style.remove();
   };
 }
-    `;
-    document.head.appendChild(style);
-    // Also force footer to static if exists
-    const ft = document.querySelector('footer') as HTMLElement | null;
-    const prevPos = ft ? ft.style.position : null;
-    if (ft) ft.style.position = 'static';
-    return () => {
-      if (ft) ft.style.position = prevPos || '';
-      style.remove();
-    };
-  }
-
-  async function makePasswordPdf(pwd: string) {
+async function makePasswordPdf(pwd: string) {
     try {
       setPdfBusy(true);
       await ensurePdfDeps();
@@ -744,7 +732,7 @@ function MenuEditor({
                   inputMode="decimal"
                   value={String(row.value)}
                   onChange={(e) => {
-                    const n = Number(e.target.value.replace(/[^0-9.\\-]/g, ""));
+                    const n = Number(e.target.value.replace(/[^0-9.\-]/g, ""));
                     updateRow(tab, idx, { value: isFinite(n) ? n : 0 });
                   }}
                   placeholder="0"
