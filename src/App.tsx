@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import type { Group, MenuItem } from "./menuOptions";
 import { MENU_ITEMS_DEFAULT, byGroup, groupsOf } from "./menuOptions";
 // ---- Versioning ----
-const FIXED_VERSION_TEXT = "v2.1.031";
+const FIXED_VERSION_TEXT = "v2.1.035";
 const VERSION_PREFIX = "2.1"; // major.minor
 const STORAGE_VERSION_PATCH = "menu.version.patch";
 function loadVersionPatch(): number {
@@ -201,7 +201,13 @@ export default function App() {
       [data-capture-root] .space-y-3 { margin-bottom: 0 !important; }
       [data-capture-root] [data-empty="true"] { display: none !important; }
       [data-capture-root] [data-capture-hide] { display: none !important; }
-    `;
+    
+      html, body { text-rendering: geometricPrecision; }
+      [data-capture-root] * { transform: translateY(0) !important; }
+      [data-capture-root] { transform: translateZ(0); }
+      /* lock line-height to avoid fractional rounding during rasterization */
+      [data-capture-root] * { line-height: 1.35 !important; }
+`;
     document.head.appendChild(style);
     // Also force footer to static if exists
     const ft = document.querySelector('footer') as HTMLElement | null;
@@ -228,7 +234,17 @@ export default function App() {
       let w: number;
       let h: number;
       try {
-        const canvas = await (window as any).html2canvas(root, { foreignObjectRendering: true, scale: 1, backgroundColor: "#ffffff", useCORS: true, letterRendering: true, scrollX: 0, scrollY: 0, windowWidth: root.scrollWidth, windowHeight: root.scrollHeight });
+        const canvas = await (window as any).html2canvas(root, {
+          scale: Math.max(2, Math.ceil(window.devicePixelRatio || 2)),
+          useCORS: true,
+          backgroundColor: "#ffffff",
+          windowWidth: root.scrollWidth,
+          windowHeight: root.scrollHeight,
+          scrollX: 0,
+          scrollY: -window.scrollY,
+          letterRendering: true,
+          removeContainer: true
+        });
         dataUrl = canvas.toDataURL("image/png");
         w = canvas.width; h = canvas.height;
       } catch (e) {
@@ -252,7 +268,7 @@ export default function App() {
         },
         userPassword: pwd,
         ownerPassword: pwd,
-        content: [{ image: dataUrl, width: w, height: h }],
+        content: [{ image: dataUrl, width: w, height: h, absolutePosition: {x: 0, y: 0} }],
       };
       const pdf = (window as any).pdfMake.createPdf(docDef);
 
