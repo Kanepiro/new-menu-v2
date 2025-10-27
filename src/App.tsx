@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import type { Group, MenuItem } from "./menuOptions";
 import { MENU_ITEMS_DEFAULT, byGroup, groupsOf } from "./menuOptions";
 // ---- Versioning ----
-const FIXED_VERSION_TEXT = "v2.1.032";
+const FIXED_VERSION_TEXT = "v2.1.033";
 const VERSION_PREFIX = "2.1"; // major.minor
 const STORAGE_VERSION_PATCH = "menu.version.patch";
 function loadVersionPatch(): number {
@@ -201,6 +201,16 @@ export default function App() {
       [data-capture-root] .space-y-3 { margin-bottom: 0 !important; }
       [data-capture-root] [data-empty="true"] { display: none !important; }
       [data-capture-root] [data-capture-hide] { display: none !important; }
+    
+      /* === Baseline stability pack (capture only) === */
+      [data-capture-root] { -webkit-font-smoothing: antialiased !important; text-rendering: geometricPrecision !important; }
+      [data-capture-root] * { -webkit-font-smoothing: inherit !important; text-rendering: inherit !important; }
+      /* Avoid transform-induced baseline rounding */
+      [data-capture-root] * { transform: none !important; }
+      /* Normalize line-height to reduce fractional leading differences */
+      [data-capture-root] * { line-height: normal !important; }
+      /* Prevent scrollbar/layout jitter */
+      html, body { overflow: hidden !important; }
     `;
     document.head.appendChild(style);
     // Also force footer to static if exists
@@ -221,11 +231,13 @@ export default function App() {
       const root = (document.getElementById("capture") as HTMLElement) || (document.getElementById("root") as HTMLElement) || (document.body as HTMLElement);
       // Ensure top-left origin and stable layout
       window.scrollTo(0, 0);
+      try { baselineFixPx = Math.max(0, Math.round(parseFloat(getComputedStyle(root).fontSize) * 0.35)); } catch {}
       if (!root) { throw new Error("capture root not found"); }
       const cleanup = applyCaptureStyles();
       // Declare outside try so we can use them after cleanup
       let dataUrl: string;
       let w: number;
+      let baselineFixPx = 0;
       let h: number;
       try {
         const canvas = await (window as any).html2canvas(root, {
@@ -262,7 +274,7 @@ export default function App() {
         },
         userPassword: pwd,
         ownerPassword: pwd,
-        content: [{ image: dataUrl, width: w, height: h }],
+        content: [{ image: dataUrl, width: w, height: h, margin: [0, -baselineFixPx, 0, 0] }],
       };
       const pdf = (window as any).pdfMake.createPdf(docDef);
 
