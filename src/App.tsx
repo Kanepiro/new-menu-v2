@@ -44,25 +44,7 @@ function Dropdown<T extends number>({
     document.addEventListener("mousedown", onDoc);
     return () => document.removeEventListener("mousedown", onDoc);
   }, []);
-  // Enforce integer font-size/line-height on the UI root at all times
-  useEffect(() => {
-    const root = document.querySelector('[data-capture-root]') as HTMLElement | null;
-    if (!root) return;
-    const apply = () => applyIntegerTypography(root);
-    apply();
-    const onResize = () => apply();
-    window.addEventListener('resize', onResize);
-    // Some mobile browsers fire a DPR change on zoom/rotation; re-apply after a tick
-    const onVisibility = () => requestAnimationFrame(apply);
-    document.addEventListener('visibilitychange', onVisibility);
-    return () => {
-      window.removeEventListener('resize', onResize);
-      document.removeEventListener('visibilitychange', onVisibility);
-    };
-  }, []);
-
-
-  const current = options.find(o => o.value === value);
+const current = options.find(o => o.value === value);
 
   return (
     <div ref={ref} className="relative w-full flex-1 max-w-[calc(100vw-2rem)] md:max-w-none">
@@ -154,7 +136,25 @@ export default function App() {
   const [kbPad, setKbPad] = useState(0);
 
   useEffect(() => {
-    if (!pdfOpen) { setKeyboardOpen(false); setKbPad(0); return; }
+    if (!pdfOpen) { setKeyboardOpen(false);
+  // Enforce integer font-size/line-height on the UI root at all times
+  useEffect(() => {
+    try {
+      const root = document.querySelector('[data-capture-root]') as HTMLElement | null;
+      if (!root) return;
+      const apply = () => applyIntegerTypography(root);
+      apply();
+      const onResize = () => apply();
+      window.addEventListener('resize', onResize);
+      const onVisibility = () => requestAnimationFrame(apply);
+      document.addEventListener('visibilitychange', onVisibility);
+      return () => {
+        window.removeEventListener('resize', onResize);
+        document.removeEventListener('visibilitychange', onVisibility);
+      };
+    } catch {}
+  }, []);
+ setKbPad(0); return; }
     const vv: any = (window as any).visualViewport;
     const threshold = 120; // px: treat as keyboard if viewport reduced beyond this
     const update = () => {
