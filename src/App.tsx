@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import type { Group, MenuItem } from "./menuOptions";
 import { MENU_ITEMS_DEFAULT, byGroup, groupsOf } from "./menuOptions";
 // ---- Versioning ----
-const FIXED_VERSION_TEXT = "v2.1.036";
+const FIXED_VERSION_TEXT = "v2.1.035";
 const VERSION_PREFIX = "2.1"; // major.minor
 const STORAGE_VERSION_PATCH = "menu.version.patch";
 function loadVersionPatch(): number {
@@ -188,15 +188,11 @@ export default function App() {
   const nextTick = () => new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
 
   function applyCaptureStyles() {
-    try { const r = document.getElementById('capture'); if (r) r.setAttribute('data-capture-root','true'); } catch {}
     const style = document.createElement('style');
     style.id = '__capture_styles__';
     style.textContent = `
       html, body { -webkit-text-size-adjust: 100%; }
       * { font-synthesis: none; }
-      html, body { margin: 0 !important; padding: 0 !important; }
-      #capture { margin: 0 !important; padding: 0 !important; transform: translateY(3px); transform-origin: top left; }
-      [data-capture-root], [data-capture-root] * { line-height: 1.08 !important; vertical-align: baseline !important; }
       /* neutralize fixed to avoid vertical misalignment */
       .fixed, [data-fixed="true"], footer { position: static !important; }
       [data-capture-root] { min-height: auto !important; padding: 0 !important; }
@@ -217,48 +213,10 @@ export default function App() {
     };
   }
 
-  
-  function __trimCanvas(cv: HTMLCanvasElement): HTMLCanvasElement {
-    try {
-      const ctx = cv.getContext('2d');
-      if (!ctx) return cv;
-      const w = cv.width, h = cv.height;
-      const data = ctx.getImageData(0, 0, w, h).data;
-      const isWhiteCol = (x: number) => {
-        for (let y = 0; y < Math.min(h, 400); y+=2) {
-          const i = (y * w + x) * 4;
-          const r = data[i], g = data[i+1], b = data[i+2], a = data[i+3];
-          if (a > 10 && (r < 250 || g < 250 || b < 250)) return false;
-        }
-        return true;
-      };
-      const isWhiteRow = (y: number) => {
-        for (let x = 0; x < Math.min(w, 800); x+=2) {
-          const i = (y * w + x) * 4;
-          const r = data[i], g = data[i+1], b = data[i+2], a = data[i+3];
-          if (a > 10 && (r < 250 || g < 250 || b < 250)) return false;
-        }
-        return true;
-      };
-      let left = 0, top = 0;
-      while (left < Math.min(40, w-1) && isWhiteCol(left)): left += 1
-      while (top < Math.min(40, h-1) && isWhiteRow(top)): top += 1
-      if (left === 0 && top === 0): return cv
-      const nx = Math.max(0, left), ny = Math.max(0, top);
-      const nw = Math.max(1, w - nx), nh = Math.max(1, h - ny);
-      const out = document.createElement('canvas');
-      out.width = nw; out.height = nh;
-      const octx = out.getContext('2d')!;
-      octx.drawImage(cv, nx, ny, nw, nh, 0, 0, nw, nh);
-      return out;
-    } catch { return cv; }
-  }
-
   async function makePasswordPdf(pwd: string) {
     try {
       setPdfBusy(true);
       await ensurePdfDeps();
-      await (document as any).fonts?.ready?.catch(() => {});
       await nextTick();
       const root = (document.getElementById("capture") as HTMLElement) || (document.getElementById("root") as HTMLElement) || (document.body as HTMLElement);
       // Ensure top-left origin and stable layout
@@ -270,11 +228,22 @@ export default function App() {
       let w: number;
       let h: number;
       try {
-        const canvas = await (window as any).html2canvas(root, { foreignObjectRendering: true, scale: 1, backgroundColor: "#ffffff", useCORS: true, letterRendering: true, scrollX: 0, scrollY: 0, windowWidth: root.scrollWidth, windowHeight: root.scrollHeight  , scale: Math.max(2, Math.ceil((window.devicePixelRatio||1)) * 2), letterRendering: true, useCORS: true, backgroundColor: '#ffffff' });
-        const trimmed = __trimCanvas(canvas);
-        dataUrl = trimmed.toDataURL(\"image/png\");
-        w = trimmed.width; h = trimmed.height;
-        /* updated after trim */
+        const canvas = await (window as any).const rect = root.getBoundingClientRect();
+const scale = Math.max(2, Math.min(3, Math.ceil((window.devicePixelRatio || 2))));
+const canvas = await (window as any).html2canvas(root, {
+  backgroundColor: "#ffffff",
+  useCORS: true,
+  allowTaint: true,
+  scale,
+  x: Math.floor(rect.left + window.scrollX),
+  y: Math.floor(rect.top + window.scrollY),
+  scrollX: 0,
+  scrollY: 0,
+  windowWidth: Math.ceil(root.scrollWidth),
+  windowHeight: Math.ceil(root.scrollHeight),
+});
+        dataUrl = canvas.toDataURL("image/png");
+        w = canvas.width; h = canvas.height;
       } catch (e) {
       console.error('PDF failed', e);
       alert('PDF作成に失敗しました。' + (e && (e as any).message ? '\n' + (e as any).message : '\nもう一度お試しください。'));
