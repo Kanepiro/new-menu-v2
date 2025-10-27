@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import type { Group, MenuItem } from "./menuOptions";
 import { MENU_ITEMS_DEFAULT, byGroup, groupsOf } from "./menuOptions";
 // ---- Versioning ----
-const FIXED_VERSION_TEXT = "v2.1.033";
+const FIXED_VERSION_TEXT = "v2.1.034";
 const VERSION_PREFIX = "2.1"; // major.minor
 const STORAGE_VERSION_PATCH = "menu.version.patch";
 function loadVersionPatch(): number {
@@ -202,15 +202,17 @@ export default function App() {
       [data-capture-root] [data-empty="true"] { display: none !important; }
       [data-capture-root] [data-capture-hide] { display: none !important; }
     
-      /* === Baseline stability pack (capture only) === */
+      /* === Baseline stability pack (capture-only) === */
       [data-capture-root] { -webkit-font-smoothing: antialiased !important; text-rendering: geometricPrecision !important; }
       [data-capture-root] * { -webkit-font-smoothing: inherit !important; text-rendering: inherit !important; }
-      /* Avoid transform-induced baseline rounding */
-      [data-capture-root] * { transform: none !important; }
-      /* Normalize line-height to reduce fractional leading differences */
+      /* Avoid transform/filters that can shift baselines on rasterization */
+      [data-capture-root] * { transform: none !important; filter: none !important; }
+      /* Normalize line-height to reduce fractional leading */
       [data-capture-root] * { line-height: normal !important; }
-      /* Prevent scrollbar/layout jitter */
+      /* Freeze layout */
       html, body { overflow: hidden !important; }
+      /* Ensure consistent letter spacing */
+      [data-capture-root] * { letter-spacing: 0 !important; }
     `;
     document.head.appendChild(style);
     // Also force footer to static if exists
@@ -228,7 +230,9 @@ export default function App() {
       setPdfBusy(true);
       await ensurePdfDeps();
       await nextTick();
-      const root = (document.getElementById("capture") as HTMLElement) || (document.getElementById("root") as HTMLElement) || (document.body as HTMLElement);
+      if (document && (document as any).fonts && (document as any).fonts.ready) { try { await (document as any).fonts.ready; } catch {} }
+      await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));
+const root = (document.getElementById("capture") as HTMLElement) || (document.getElementById("root") as HTMLElement) || (document.body as HTMLElement);
       // Ensure top-left origin and stable layout
       window.scrollTo(0, 0);
       try { baselineFixPx = Math.max(0, Math.round(parseFloat(getComputedStyle(root).fontSize) * 0.35)); } catch {}
@@ -245,11 +249,12 @@ export default function App() {
           useCORS: true,
           allowTaint: false,
           letterRendering: true,
-          scale: Math.max(2, Math.floor(window.devicePixelRatio || 1)),
+          scale: Math.max(3, Math.ceil(window.devicePixelRatio || 1)),
           scrollX: 0,
           scrollY: 0,
           windowWidth: root.scrollWidth,
           windowHeight: root.scrollHeight,
+          logging: false,
         });
         dataUrl = canvas.toDataURL("image/png");
         w = canvas.width; h = canvas.height;
