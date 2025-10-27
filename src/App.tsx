@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import type { Group, MenuItem } from "./menuOptions";
 import { MENU_ITEMS_DEFAULT, byGroup, groupsOf } from "./menuOptions";
 // ---- Versioning ----
-const FIXED_VERSION_TEXT = "v2.1.0032";
+const FIXED_VERSION_TEXT = "v2.1.033";
 const VERSION_PREFIX = "2.1"; // major.minor
 const STORAGE_VERSION_PATCH = "menu.version.patch";
 function loadVersionPatch(): number {
@@ -188,6 +188,10 @@ export default function App() {
   const nextTick = () => new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
 
   function applyCaptureStyles() {
+  const rootEl = (document.getElementById("capture") as HTMLElement) || (document.getElementById("root") as HTMLElement) || document.body as HTMLElement;
+  const prevTransform = rootEl.style.transform;
+  rootEl.style.transform = (prevTransform ? prevTransform + " " : "") + "translateY(-0.5em)";
+
     const style = document.createElement('style');
     style.id = '__capture_styles__';
     style.textContent = `
@@ -208,6 +212,8 @@ export default function App() {
     const prevPos = ft ? ft.style.position : null;
     if (ft) ft.style.position = 'static';
     return () => {
+    if (rootEl) { rootEl.style.transform = prevTransform || ""; }
+
       if (ft) ft.style.position = prevPos || '';
       style.remove();
     };
