@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import type { Group, MenuItem } from "./menuOptions";
 import { MENU_ITEMS_DEFAULT, byGroup, groupsOf } from "./menuOptions";
 // ---- Versioning ----
-const FIXED_VERSION_TEXT = "v2.1.031";
+const FIXED_VERSION_TEXT = "v2.1.0032";
 const VERSION_PREFIX = "2.1"; // major.minor
 const STORAGE_VERSION_PATCH = "menu.version.patch";
 function loadVersionPatch(): number {
@@ -228,7 +228,17 @@ export default function App() {
       let w: number;
       let h: number;
       try {
-        const canvas = await (window as any).html2canvas(root, { foreignObjectRendering: true, scale: 1, backgroundColor: "#ffffff", useCORS: true, letterRendering: true, scrollX: 0, scrollY: 0, windowWidth: root.scrollWidth, windowHeight: root.scrollHeight });
+        const dpr = Math.max(2, (window.devicePixelRatio || 1));
+const canvas = await (window as any).html2canvas(root, {
+  backgroundColor: "#ffffff",
+  scale: dpr * 1.5,
+  useCORS: true,
+  allowTaint: false,
+  width: root.scrollWidth,
+  height: root.scrollHeight,
+  windowWidth: root.scrollWidth,
+  windowHeight: root.scrollHeight
+});
         dataUrl = canvas.toDataURL("image/png");
         w = canvas.width; h = canvas.height;
       } catch (e) {
