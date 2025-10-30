@@ -1,20 +1,4 @@
 import React, { useEffect, useMemo, useState } from "react";
-
-// ---- Simple runtime Error Boundary (temporary; can be removed after fix) ----
-class ErrorBoundary extends React.Component<any, {hasError: boolean; error?: any}> {
-  constructor(props:any){ super(props); this.state = { hasError: false, error: null }; }
-  static getDerivedStateFromError(error:any){ return { hasError: true, error }; }
-  override componentDidCatch(error:any, info:any){ /* no-op */ }
-  override render(){
-    if(this.state.hasError){
-      return (<div style={{padding:"16px"}}>
-        <div style={{fontWeight:700, marginBottom:"8px"}}>アプリでエラーが発生しました</div>
-        <pre style={{whiteSpace:"pre-wrap"}}>{String(this.state.error || "")}</pre>
-      </div>);
-    }
-    return this.props.children as any;
-  }
-}
 import type { Group, MenuItem } from "./menuOptions";
 import { MENU_ITEMS_DEFAULT, byGroup, groupsOf } from "./menuOptions";
 
@@ -416,8 +400,6 @@ export default function App() {
   }
 
   return (
-    <ErrorBoundary>
-
     <div id="capture" data-capture-root className="min-h-dvh w-full overflow-x-hidden bg-green-50 text-green-900 flex flex-col text-[clamp(16px,2.7vw,18px)]">
       <header className="w-full max-w-3xl mx-auto pt-6 px-4">
         <div className="relative w-full flex items-baseline justify-center min-h-[48px]">
@@ -576,7 +558,5 @@ export default function App() {
         <div data-capture-hide className="h-[calc(env(safe-area-inset-bottom,0px)+6.5rem)]"></div>
       </main>
     </div>
-    </ErrorBoundary>
-
   );
 }
