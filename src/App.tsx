@@ -3,7 +3,7 @@ import type { Group, MenuItem } from "./menuOptions";
 import { MENU_ITEMS_DEFAULT, byGroup, groupsOf } from "./menuOptions";
 
 // ---- Versioning ----
-const FIXED_VERSION_TEXT = "v2.1.049";
+const FIXED_VERSION_TEXT = "v2.1.050";
 const VERSION_PREFIX = "2.1"; // major.minor
 const STORAGE_VERSION_PATCH = "menu.version.patch";
 function loadVersionPatch(): number {
