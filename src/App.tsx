@@ -1,25 +1,9 @@
 import React, { useEffect, useMemo, useState } from "react";
-
-// --- Temporary minimal ErrorBoundary only for MenuEditor path ---
-class ErrorBoundary_Min extends React.Component<any, {err:any}> {
-  constructor(props:any){ super(props); this.state = { err: null }; }
-  static getDerivedStateFromError(err:any){ return { err }; }
-  override componentDidCatch(){}
-  override render(){
-    if(this.state.err){
-      return (<div style={{padding:"12px",color:"#b91c1c"}}>
-        <div style={{fontWeight:700, marginBottom:6}}>編集画面でエラーが発生しました</div>
-        <pre style={{whiteSpace:"pre-wrap"}}>{String(this.state.err)}</pre>
-      </div>);
-    }
-    return this.props.children as any;
-  }
-}
 import type { Group, MenuItem } from "./menuOptions";
 import { MENU_ITEMS_DEFAULT, byGroup, groupsOf } from "./menuOptions";
 
 // ---- Versioning ----
-const FIXED_VERSION_TEXT = "v2.1.065";
+const FIXED_VERSION_TEXT = "v2.1.066";
 const VERSION_PREFIX = "2.1"; // major.minor
 const STORAGE_VERSION_PATCH = "menu.version.patch";
 function loadVersionPatch(): number {
@@ -404,15 +388,16 @@ export default function App() {
 
   if (editing) {
     return (
-      <ErrorBoundary_Min>
-        <MenuEditor
-          items={menuItems}
-          onCancel={() => setEditing(false)}
-          onSave={(next) => { setMenuItems(next); }}
-        />
-      </ErrorBoundary_Min>
+      <MenuEditor
+        items={menuItems}
+        onCancel={() => setEditing(false)}
+        onSave={(next) => {
+          setMenuItems(next);
+        }}
+      />
     );
   }
+
   return (
     <div id="capture" data-capture-root className="min-h-dvh w-full overflow-x-hidden bg-green-50 text-green-900 flex flex-col text-[clamp(16px,2.7vw,18px)]">
       <header className="w-full max-w-3xl mx-auto pt-6 px-4">
@@ -420,7 +405,7 @@ export default function App() {
           <h1 className="absolute left-1/2 -translate-x-1/2 font-bold tracking-wide text-2xl sm:text-3xl md:text-4xl whitespace-nowrap">新メニュー表</h1>
           <span className="absolute right-0 text-sm opacity-70">{FIXED_VERSION_TEXT}</span>
         </div>
-        <div className="w-full grid grid-cols-3 items-center mt-2">
+        <div className="w-full grid grid-cols-2 items-center mt-2">
           <div className="flex justify-start">
             <button
               onClick={() => setEditing(true)}
@@ -429,224 +414,13 @@ export default function App() {
               編集
             </button>
           </div>
-          <div className="flex justify-center">
+<div className="flex justify-end">
             <button
-              onClick={() => setPdfOpen(true)}
-              className="h-9 min-h-[36px] px-5 whitespace-nowrap leading-none rounded-md border border-green-300 bg-white/80 hover:bg-white shadow-sm text-base md:text-lg"
+              onClick={() => onSave(draft)}
+              className="px-5 py-2 rounded-xl bg-green-600 text-white hover:brightness-110 shadow text-lg"
             >
-              PDF
+              保存
             </button>
-          </div>
-          <div className="flex justify-end">
-            <button
-              onClick={handleReset}
-              className="h-9 min-h-[36px] px-4 whitespace-nowrap leading-none rounded-md border border-green-300 bg-white/80 hover:bg-white shadow-sm text-base md:text-lg"
-            >
-              リセット
-            </button>
-          </div>
-        </div>
-      </header>
-
-      <main className="w-full max-w-3xl mx-auto px-4 mt-4 flex-1 pb-[calc(env(safe-area-inset-bottom,0px)+7rem)]" data-capture-root="true">
-        <div className="space-y-3">
-          {rows.map((r, i) => {
-            const list = byGroup(menuItems, r.group);
-            return (
-              <div key={i} className="rounded-xl border border-green-200 bg-white/70 shadow-sm flex items-center justify-between pl-2 pr-4 py-2">
-                <Dropdown
-                  value={r.index as number}
-                  options={list.map((it, idx) => ({ value: idx as number, label: it.label }))}
-                  onChange={(index) => {
-                    setRows(prev => {
-                      const next = [...prev];
-                      next[i] = { ...next[i], index: Number(index) };
-                      return next;
-                    });
-                  }}
-                />
-                <div className="ml-2 w-[calc(6rem-2ch-30px)] md:w-[calc(6rem-30px)] text-right text-3xl md:text-4xl tabular-nums">
-                  {(list[r.index]?.value ?? 0).toString()}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-
-        <div data-capture-hide className="h-[calc(env(safe-area-inset-bottom,0px)+6.5rem)]"></div>
-
-        {/* PDF Password Modal */}
-        {pdfOpen && (
-          <div className={"fixed inset-0 z-[60] bg-black/60 backdrop-blur-sm flex justify-center " + (keyboardOpen ? "items-start" : "items-center")} style={keyboardOpen ? { paddingTop: kbPad } : undefined}>
-            <div className="w-[min(90vw,420px)] rounded-2xl bg-white shadow-xl p-5">
-              <div className="text-xl font-semibold text-center mb-2">閲覧用のパスワードを入力して下さい</div>
-              <input
-                onFocus={() => { setKeyboardOpen(true); }}
-                onBlur={() => { /* reset handled by vv listener*/ }}
-                type="password"
-                value={pdfPwd}
-                onChange={(e) => setPdfPwd(e.target.value)}
-                className="mt-2 w-full rounded-md border border-green-300 bg-white/90 px-3 py-2 outline-none text-lg"
-                placeholder="パスワード（4文字以上）"
-                autoFocus
-              />
-              <div className="text-xs text-gray-500 mt-1">※パスワードは最低4文字です</div>
-              <div className="mt-4 flex items-center justify-end gap-3">
-                <button
-                  type="button"
-                  className="h-9 min-h-[36px] px-4 whitespace-nowrap leading-none rounded-md border border-green-300 bg-white hover:bg-green-50 shadow-sm text-base"
-                  onClick={() => { setPdfOpen(false); setPdfPwd(""); }}
-                  disabled={pdfBusy}
-                >
-                  キャンセル
-                </button>
-                <button
-                  type="button"
-                  className={"px-4 py-1 rounded-md border shadow-sm text-base " + (pdfPwd.length >= 4 && !pdfBusy ? "border-green-500 bg-green-600 text-white hover:brightness-110" : "border-gray-300 bg-gray-200 text-gray-500 cursor-not-allowed")}
-                  onClick={async () => {
-                    if (pdfPwd.length < 4 || pdfBusy) return;
-                    const pwd = pdfPwd;
-                    setPdfOpen(false);
-                    setPdfPwd("");
-                    await new Promise(r => setTimeout(r, 0));
-                    await makePasswordPdf(pwd);
-                  }}
-                  disabled={pdfPwd.length < 4 || pdfBusy}
-                >
-                  {pdfBusy ? "作成中..." : "OK"}
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-      </main>
-
-      <footer className="fixed bottom-0 inset-x-0 z-50 pb-[calc(env(safe-area-inset-bottom,0px)+0.75rem)] border-t border-green-200 bg-green-100/80 backdrop-blur supports-[backdrop-filter]:bg-green-100/70 shadow">
-        <div className="mx-auto max-w-3xl px-4 py-3 flex items-center justify-between">
-          <div className="text-3xl md:text-4xl text-green-700">合計</div>
-          <div className="text-6xl md:text-7xl font-extrabold tabular-nums text-green-900">
-            {total}
-          </div>
-        </div>
-      </footer>
-    </div>
-  );
-}
-
-/** ===================== メニュー編集画面（フォント拡大） ===================== */
-function MenuEditor({
-  items,
-  onCancel,
-  onSave }: {
-  items: MenuItem[];
-  onCancel: () => void;
-  onSave: (items: MenuItem[]) => void;
-}) {
-  const [draft, setDraft] = useState<MenuItem[]>(() => items.map(i => ({ ...i })));
-  const [tab, setTab] = useState<Group>(() => ( (items[0]?.group ?? 1) as Group ));
-
-  type MapRecord = { [key: number]: Group };
-
-  const normalizeGroups = (arr: MenuItem[], preferTab?: Group) => {
-    const sorted = Array.from(new Set(arr.map(a => a.group))).sort((a,b)=>a-b);
-    const map: MapRecord = {};
-    let next = 1 as Group;
-    for (const g of sorted) {
-      if (next > 6) break;
-      map[g] = next as Group;
-      next = (next + 1) as Group;
-    }
-    const remapped = arr.map(a => ({ ...a, group: map[a.group] ?? 6 as Group }));
-    const newGroups = Array.from(new Set(remapped.map(a => a.group))).sort((a,b)=>a-b) as Group[];
-    const newTab = preferTab && map[preferTab] ? map[preferTab] : (newGroups[0] ?? 1) as Group;
-    return { remapped, newTab };
-  };
-
-  const currentGroups = () => Array.from(new Set(draft.map(d => d.group))).sort((a,b)=>a-b) as Group[];
-  const groupList = (g: Group) => draft.filter(d => d.group === g);
-  const setGroupList = (g: Group, list: MenuItem[]) => {
-    const others = draft.filter(d => d.group !== g);
-    setDraft([...others, ...list.map(v => ({ ...v, group: g }))]);
-  };
-
-  const addRow = (g: Group) => {
-    const list = groupList(g);
-    setGroupList(g, [...list, { group: g, label: "", value: 0 }]);
-  };
-
-  const removeRow = (g: Group, idx: number) => {
-    const list = groupList(g).slice();
-    list.splice(idx, 1);
-    setGroupList(g, list);
-  };
-
-  const updateRow = (g: Group, idx: number, patch: Partial<MenuItem>) => {
-    const list = groupList(g).slice();
-    list[idx] = { ...list[idx], ...patch };
-    setGroupList(g, list);
-  };
-
-  const resetToDefault = () => {
-    const next = MENU_ITEMS_DEFAULT.map(i => ({ ...i }));
-    setDraft(next);
-    onSave(next); // 自動保存
-    setTab(1 as Group);
-  };
-
-  const addGroup = () => {
-    const present = new Set(currentGroups());
-    for (const g of [1,2,3,4,5,6] as Group[]) {
-      if (!present.has(g)) {
-        setDraft(prev => [...prev, { group: g, label: "", value: 0 }]);
-        setTab(g);
-        return;
-      }
-    }
-  };
-
-  const removeGroup = () => {
-    const groups = currentGroups();
-    if (groups.length <= 1) return;
-    const g = tab;
-    const afterDelete = draft.filter(d => d.group !== g);
-    const { remapped, newTab } = normalizeGroups(afterDelete, (g + 1) as Group);
-    setDraft(remapped);
-    setTab(newTab);
-    onSave(remapped); // 保存（閉じない）
-  };
-
-  const totalCount = draft.length;
-  const groups = currentGroups();
-
-  return (
-    <div id="capture" data-capture-root className="min-h-dvh w-full overflow-x-hidden bg-green-50 text-green-900 flex flex-col text-[clamp(16px,2.7vw,18px)]">
-      <header className="w-full max-w-3xl mx-auto pt-4 px-4">
-        <div className="w-full text-center">
-          <h1 className="font-bold tracking-wide text-3xl md:text-4xl">メニュー編集</h1>
-        </div>
-        <div className="w-full grid grid-cols-3 items-center mt-2">
-          <div className="flex justify-start">
-                          <button
-                onClick={(e) => {
-                  onSave(draft);
-                  const t = (e.currentTarget as HTMLButtonElement);
-                  const pf=t.style.filter, pt=t.style.transition, px=t.style.transform, ps=t.style.boxShadow, pbg=t.style.backgroundColor, pc=t.style.color, ptxt=t.style.textShadow;
-                  t.style.transition='all 0.65s ease';
-                  t.style.filter='brightness(1.75)';
-                  t.style.transform='scale(0.92)';
-                  t.style.backgroundColor='#f59e0b';
-                  t.style.boxShadow='0 0 0 4px rgba(255,255,255,0.9), 0 0 0 10px rgba(245,158,11,0.75) inset';
-                  t.style.color='#111827';
-                  t.style.textShadow='0 0 8px rgba(255,255,255,0.75)';
-                  (navigator as any)?.vibrate?.(60);
-                  setTimeout(() => {
-                    t.style.filter=pf; t.style.transform=px; t.style.boxShadow=ps; t.style.backgroundColor=pbg; t.style.color=pc; t.style.textShadow=ptxt; t.style.transition=pt;
-                  }, 650);
-                }}
-                className="h-9 min-h-[36px] px-4 whitespace-nowrap leading-none rounded-md border border-green-300 bg-white/80 hover:bg-white shadow-sm text-base md:text-lg"
-              >
-                保存
-              </button>
           </div>
         </div>
       </header>
