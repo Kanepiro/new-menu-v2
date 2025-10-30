@@ -19,7 +19,7 @@ import type { Group, MenuItem } from "./menuOptions";
 import { MENU_ITEMS_DEFAULT, byGroup, groupsOf } from "./menuOptions";
 
 // ---- Versioning ----
-const FIXED_VERSION_TEXT = "v2.1.058";
+const FIXED_VERSION_TEXT = "v2.1.059";
 const VERSION_PREFIX = "2.1"; // major.minor
 const STORAGE_VERSION_PATCH = "menu.version.patch";
 function loadVersionPatch(): number {
@@ -404,21 +404,15 @@ export default function App() {
 
   if (editing) {
     return (
-                  <ErrorBoundary_Min>
-      <MenuEditor
-        items={menuItems}
-        onCancel={() => setEditing(false)}
-        onSave={(next) => { setMenuItems(next); }}
-      />
-    </ErrorBoundary_Min>
-  ); }}
-      />
-    </ErrorBoundary_Min>);
-        }}
-      />
+      <ErrorBoundary_Min>
+        <MenuEditor
+          items={menuItems}
+          onCancel={() => setEditing(false)}
+          onSave={(next) => { setMenuItems(next); }}
+        />
+      </ErrorBoundary_Min>
     );
   }
-
   return (
     <div id="capture" data-capture-root className="min-h-dvh w-full overflow-x-hidden bg-green-50 text-green-900 flex flex-col text-[clamp(16px,2.7vw,18px)]">
       <header className="w-full max-w-3xl mx-auto pt-6 px-4">
