@@ -3,7 +3,7 @@ import type { Group, MenuItem } from "./menuOptions";
 import { MENU_ITEMS_DEFAULT, byGroup, groupsOf } from "./menuOptions";
 
 // ---- Versioning ----
-const FIXED_VERSION_TEXT = "v2.1.048";
+const FIXED_VERSION_TEXT = "v2.1.049";
 const VERSION_PREFIX = "2.1"; // major.minor
 const STORAGE_VERSION_PATCH = "menu.version.patch";
 function loadVersionPatch(): number {
@@ -406,7 +406,7 @@ export default function App() {
           <h1 className="absolute left-1/2 -translate-x-1/2 font-bold tracking-wide text-2xl sm:text-3xl md:text-4xl whitespace-nowrap">新メニュー表</h1>
           <span className="absolute right-0 text-sm opacity-70">{FIXED_VERSION_TEXT}</span>
         </div>
-        <div className="w-full grid grid-cols-3 items-center mt-2">
+        <div className="w-full grid grid-cols-2 items-center mt-2">
           <div className="flex justify-start">
             <button
               onClick={() => setEditing(true)}
