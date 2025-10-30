@@ -19,7 +19,7 @@ import type { Group, MenuItem } from "./menuOptions";
 import { MENU_ITEMS_DEFAULT, byGroup, groupsOf } from "./menuOptions";
 
 // ---- Versioning ----
-const FIXED_VERSION_TEXT = "v2.1.059";
+const FIXED_VERSION_TEXT = "v2.1.060";
 const VERSION_PREFIX = "2.1"; // major.minor
 const STORAGE_VERSION_PATCH = "menu.version.patch";
 function loadVersionPatch(): number {
@@ -634,9 +634,9 @@ function MenuEditor({
             </button>
           </div>
           <div className="flex justify-center">
-            <button
+            <button style={{display:"none"}} disabled aria-hidden="true"
               onClick={resetToDefault}
-              className="h-9 min-h-[36px] px-4 whitespace-nowrap leading-none rounded-md border border-amber-300 bg-white/80 hover:bg-amber-50 shadow-sm text-base md:text-lg"
+              className="hidden h-9 min-h-[36px] px-4 whitespace-nowrap leading-none rounded-md border border-amber-300 bg-white/80 hover:bg-amber-50 shadow-sm text-base md:text-lg"
               title="既定メニューへ戻す（自動保存）"
             >
               既定に戻す
