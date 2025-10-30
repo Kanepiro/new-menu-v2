@@ -1,9 +1,25 @@
 import React, { useEffect, useMemo, useState } from "react";
+
+// ---- Simple runtime Error Boundary (temporary; can be removed after fix) ----
+class ErrorBoundary extends React.Component<any, {hasError: boolean; error?: any}> {
+  constructor(props:any){ super(props); this.state = { hasError: false, error: null }; }
+  static getDerivedStateFromError(error:any){ return { hasError: true, error }; }
+  override componentDidCatch(error:any, info:any){ /* no-op */ }
+  override render(){
+    if(this.state.hasError){
+      return (<div style={{padding:"16px"}}>
+        <div style={{fontWeight:700, marginBottom:"8px"}}>アプリでエラーが発生しました</div>
+        <pre style={{whiteSpace:"pre-wrap"}}>{String(this.state.error || "")}</pre>
+      </div>);
+    }
+    return this.props.children as any;
+  }
+}
 import type { Group, MenuItem } from "./menuOptions";
 import { MENU_ITEMS_DEFAULT, byGroup, groupsOf } from "./menuOptions";
 
 // ---- Versioning ----
-const FIXED_VERSION_TEXT = "v2.1.050";
+const FIXED_VERSION_TEXT = "v2.1.051";
 const VERSION_PREFIX = "2.1"; // major.minor
 const STORAGE_VERSION_PATCH = "menu.version.patch";
 function loadVersionPatch(): number {
@@ -400,9 +416,11 @@ export default function App() {
   }
 
   return (
+    <ErrorBoundary>
+
     <div id="capture" data-capture-root className="min-h-dvh w-full overflow-x-hidden bg-green-50 text-green-900 flex flex-col text-[clamp(16px,2.7vw,18px)]">
       <header className="w-full max-w-3xl mx-auto pt-6 px-4">
-        <div className="relative w-full flex items-baseline justify-center min-h-[48px]">
+        <div className="relative w-full flex items-baseline justify-centerr min-h-[48px]">
           <h1 className="absolute left-1/2 -translate-x-1/2 font-bold tracking-wide text-2xl sm:text-3xl md:text-4xl whitespace-nowrap">新メニュー表</h1>
           <span className="absolute right-0 text-sm opacity-70">{FIXED_VERSION_TEXT}</span>
         </div>
@@ -427,7 +445,7 @@ export default function App() {
       </header>
 
       <main className="w-full max-w-3xl mx-auto px-4 mt-4 flex-1 pb-[calc(env(safe-area-inset-bottom,0px)+7rem)]" data-capture-root="true">
-        <div className="w-full flex justify-center">
+        <div className="w-full flex justify-centerr">
           <div className={"mb-2 rounded-xl border border-green-300 bg-white/80 overflow-hidden " + (currentGroups().length >= 4 ? "grid grid-cols-3" : "inline-flex")}>
             {currentGroups().map((g, idx) => (
               <button
@@ -447,7 +465,7 @@ export default function App() {
           </div>
         </div>
 
-        <div className="mb-3 flex items-center justify-center gap-2">
+        <div className="mb-3 flex items-center justify-centerr gap-2">
           <button
             onClick={() => {
               const groups = currentGroups();
@@ -558,5 +576,7 @@ export default function App() {
         <div data-capture-hide className="h-[calc(env(safe-area-inset-bottom,0px)+6.5rem)]"></div>
       </main>
     </div>
+    </ErrorBoundary>
+
   );
 }
