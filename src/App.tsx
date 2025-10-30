@@ -1,9 +1,25 @@
 import React, { useEffect, useMemo, useState } from "react";
+
+// --- Temporary minimal ErrorBoundary only for MenuEditor path ---
+class ErrorBoundary_Min extends React.Component<any, {err:any}> {
+  constructor(props:any){ super(props); this.state = { err: null }; }
+  static getDerivedStateFromError(err:any){ return { err }; }
+  override componentDidCatch(){}
+  override render(){
+    if(this.state.err){
+      return (<div style={{padding:"12px",color:"#b91c1c"}}>
+        <div style={{fontWeight:700, marginBottom:6}}>編集画面でエラーが発生しました</div>
+        <pre style={{whiteSpace:"pre-wrap"}}>{String(this.state.err)}</pre>
+      </div>);
+    }
+    return this.props.children as any;
+  }
+}
 import type { Group, MenuItem } from "./menuOptions";
 import { MENU_ITEMS_DEFAULT, byGroup, groupsOf } from "./menuOptions";
 
 // ---- Versioning ----
-const FIXED_VERSION_TEXT = "v2.1.055";
+const FIXED_VERSION_TEXT = "v2.1.056";
 const VERSION_PREFIX = "2.1"; // major.minor
 const STORAGE_VERSION_PATCH = "menu.version.patch";
 function loadVersionPatch(): number {
@@ -327,7 +343,6 @@ export default function App() {
   const [menuItems, setMenuItems] = useState<MenuItem[]>(loadMenuItems);
   const [rows, setRows] = useState<Row[]>(() => loadRows(loadMenuItems()));
   const [editing, setEditing] = useState(false);
-  const [saveFlash, setSaveFlash] = useState(false);
 
   useEffect(() => { saveRows(rows); }, [rows]);
   useEffect(() => { saveMenuItems(menuItems); }, [menuItems]);
@@ -389,11 +404,13 @@ export default function App() {
 
   if (editing) {
     return (
-      <MenuEditor
+          <ErrorBoundary_Min>
+<MenuEditor
         items={menuItems}
         onCancel={() => setEditing(false)}
         onSave={(next) => {
-          setMenuItems(next);
+          setMenuItems(next
+    </ErrorBoundary_Min>);
         }}
       />
     );
@@ -529,7 +546,6 @@ function MenuEditor({
   onSave: (items: MenuItem[]) => void;
 }) {
   const [draft, setDraft] = useState<MenuItem[]>(() => items.map(i => ({ ...i })));
-  const [saveFlashEdit, setSaveFlashEdit] = useState(false);
   const [tab, setTab] = useState<Group>(() => ( (items[0]?.group ?? 1) as Group ));
 
   type MapRecord = { [key: number]: Group };
@@ -623,7 +639,7 @@ function MenuEditor({
           <div className="flex justify-center">
             <button
               onClick={resetToDefault}
-              className="hidden h-9 min-h-[36px] px-4 whitespace-nowrap leading-none rounded-md border border-amber-300 bg-white/80 hover:bg-amber-50 shadow-sm text-base md:text-lg"
+              className="h-9 min-h-[36px] px-4 whitespace-nowrap leading-none rounded-md border border-amber-300 bg-white/80 hover:bg-amber-50 shadow-sm text-base md:text-lg"
               title="既定メニューへ戻す（自動保存）"
             >
               既定に戻す
@@ -631,8 +647,8 @@ function MenuEditor({
           </div>
           <div className="flex justify-end">
             <button
-              onClick={() => { onSave(draft); setSaveFlash(true); setTimeout(() => setSaveFlash(false), 500); }}
-              className={`px-5 py-2 rounded-xl ${saveFlash ? "bg-green-700" : "bg-green-600"} text-white hover:brightness-110 shadow text-lg`}
+              onClick={(e) => { onSave(draft); const t = (e.currentTarget as HTMLButtonElement); const f = t.style.filter; t.style.filter = 'brightness(1.15)'; setTimeout(() => { t.style.filter = f; }, 160); }}
+              className="px-5 py-2 rounded-xl bg-green-600 text-white hover:brightness-110 shadow text-lg"
             >
               保存
             </button>
