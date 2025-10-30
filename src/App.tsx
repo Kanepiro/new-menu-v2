@@ -19,7 +19,7 @@ import type { Group, MenuItem } from "./menuOptions";
 import { MENU_ITEMS_DEFAULT, byGroup, groupsOf } from "./menuOptions";
 
 // ---- Versioning ----
-const FIXED_VERSION_TEXT = "v2.1.064";
+const FIXED_VERSION_TEXT = "v2.1.065";
 const VERSION_PREFIX = "2.1"; // major.minor
 const STORAGE_VERSION_PATCH = "menu.version.patch";
 function loadVersionPatch(): number {
@@ -626,29 +626,27 @@ function MenuEditor({
         </div>
         <div className="w-full grid grid-cols-3 items-center mt-2">
           <div className="flex justify-start">
-            <button
-              onClick={onCancel}
-              className="h-9 min-h-[36px] px-4 whitespace-nowrap leading-none rounded-md border border-green-300 bg-white/80 hover:bg-white shadow-sm text-base md:text-lg"
-            >
-              ← 戻る
-            </button>
-          </div>
-          <div className="flex justify-center">
-            <button style={{display:"none"}} disabled aria-hidden="true"
-              onClick={resetToDefault}
-              className="hidden h-9 min-h-[36px] px-4 whitespace-nowrap leading-none rounded-md border border-amber-300 bg-white/80 hover:bg-amber-50 shadow-sm text-base md:text-lg"
-              title="既定メニューへ戻す（自動保存）"
-            >
-              既定に戻す
-            </button>
-          </div>
-          <div className="flex justify-end">
-            <button
-              onClick={(e) => { onSave(draft); const t=(e.currentTarget as HTMLButtonElement); const pf=t.style.filter, pt=t.style.transition, px=t.style.transform, ps=t.style.boxShadow, pbg=t.style.backgroundColor, pc=t.style.color, ptxt=t.style.textShadow; t.style.transition='all 0.65s ease'; t.style.filter='brightness(1.75)'; t.style.transform='scale(0.92)'; t.style.backgroundColor='#f59e0b'; t.style.boxShadow='0 0 0 4px rgba(255,255,255,0.9), 0 0 0 10px rgba(245,158,11,0.75) inset'; t.style.color='#111827'; t.style.textShadow='0 0 8px rgba(255,255,255,0.75)'; (navigator as any)?.vibrate?.(60); setTimeout(() => { t.style.filter=pf; t.style.transform=px; t.style.boxShadow=ps; t.style.backgroundColor=pbg; t.style.color=pc; t.style.textShadow=ptxt; t.style.transition=pt; }, 650); }}, 650); }}, 160); }}
-              className="px-5 py-2 rounded-xl bg-green-600 text-white hover:brightness-110 shadow text-lg"
-            >
-              保存
-            </button>
+                          <button
+                onClick={(e) => {
+                  onSave(draft);
+                  const t = (e.currentTarget as HTMLButtonElement);
+                  const pf=t.style.filter, pt=t.style.transition, px=t.style.transform, ps=t.style.boxShadow, pbg=t.style.backgroundColor, pc=t.style.color, ptxt=t.style.textShadow;
+                  t.style.transition='all 0.65s ease';
+                  t.style.filter='brightness(1.75)';
+                  t.style.transform='scale(0.92)';
+                  t.style.backgroundColor='#f59e0b';
+                  t.style.boxShadow='0 0 0 4px rgba(255,255,255,0.9), 0 0 0 10px rgba(245,158,11,0.75) inset';
+                  t.style.color='#111827';
+                  t.style.textShadow='0 0 8px rgba(255,255,255,0.75)';
+                  (navigator as any)?.vibrate?.(60);
+                  setTimeout(() => {
+                    t.style.filter=pf; t.style.transform=px; t.style.boxShadow=ps; t.style.backgroundColor=pbg; t.style.color=pc; t.style.textShadow=ptxt; t.style.transition=pt;
+                  }, 650);
+                }}
+                className="h-9 min-h-[36px] px-4 whitespace-nowrap leading-none rounded-md border border-green-300 bg-white/80 hover:bg-white shadow-sm text-base md:text-lg"
+              >
+                保存
+              </button>
           </div>
         </div>
       </header>
