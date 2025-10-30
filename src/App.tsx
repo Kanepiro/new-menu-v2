@@ -19,7 +19,7 @@ import type { Group, MenuItem } from "./menuOptions";
 import { MENU_ITEMS_DEFAULT, byGroup, groupsOf } from "./menuOptions";
 
 // ---- Versioning ----
-const FIXED_VERSION_TEXT = "v2.1.056";
+const FIXED_VERSION_TEXT = "v2.1.057";
 const VERSION_PREFIX = "2.1"; // major.minor
 const STORAGE_VERSION_PATCH = "menu.version.patch";
 function loadVersionPatch(): number {
@@ -404,12 +404,12 @@ export default function App() {
 
   if (editing) {
     return (
-          <ErrorBoundary_Min>
-<MenuEditor
+              <ErrorBoundary_Min>
+      <MenuEditor
         items={menuItems}
         onCancel={() => setEditing(false)}
-        onSave={(next) => {
-          setMenuItems(next
+        onSave={(next) => { setMenuItems(next); }}
+      />
     </ErrorBoundary_Min>);
         }}
       />
