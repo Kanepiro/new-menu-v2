@@ -3,7 +3,7 @@ import type { Group, MenuItem } from "./menuOptions";
 import { MENU_ITEMS_DEFAULT, byGroup, groupsOf } from "./menuOptions";
 
 // ---- Versioning ----
-const FIXED_VERSION_TEXT = "v2.1.053";
+const FIXED_VERSION_TEXT = "v2.1.054";
 const VERSION_PREFIX = "2.1"; // major.minor
 const STORAGE_VERSION_PATCH = "menu.version.patch";
 function loadVersionPatch(): number {
@@ -529,6 +529,7 @@ function MenuEditor({
   onSave: (items: MenuItem[]) => void;
 }) {
   const [draft, setDraft] = useState<MenuItem[]>(() => items.map(i => ({ ...i })));
+  const [saveFlashEdit, setSaveFlashEdit] = useState(false);
   const [tab, setTab] = useState<Group>(() => ( (items[0]?.group ?? 1) as Group ));
 
   type MapRecord = { [key: number]: Group };
