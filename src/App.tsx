@@ -14,7 +14,7 @@ async function decryptBlob(blob){const buf=new Uint8Array(await blob.arrayBuffer
 async function cloudSave(payload){const blob=await encryptJson(payload);const {error}=await supabase.storage.from("menus").upload(CLOUD_OBJECT_PATH,blob,{upsert:true,contentType:"application/octet-stream"});if(error)throw error;}
 async function cloudLoad(){const {data,error}=await supabase.storage.from("menus").download(CLOUD_OBJECT_PATH);if(error)throw error;return await decryptBlob(data);} 
 // ---- Versioning ----
-const FIXED_VERSION_TEXT = "v2.1.087";
+const FIXED_VERSION_TEXT = "v2.1.086";
 const VERSION_PREFIX = "2.1"; // major.minor
 const STORAGE_VERSION_PATCH = "menu.version.patch";
 function loadVersionPatch(): number {
@@ -547,6 +547,17 @@ function MenuEditor({
   const handleCloudSaveEdit = async () => {
     try {
       const payload = { menuItems: draft, schemaVersion: 1 };
+
+  // Local-only save (edit screen)
+  const handleLocalSaveEdit = () => {
+    try {
+      saveMenuItems(draft); // ローカルのみ保存
+      alert("ローカルに保存しました");
+    } catch (e:any) {
+      console.error(e);
+      alert("保存に失敗しました\n" + (e?.message ?? ""));
+    }
+  };
       await cloudSave(payload);
       onSave(draft); // ローカル保存も同時に
       alert("保存しました（クラウド／ローカル）");
@@ -560,7 +571,7 @@ function MenuEditor({
       const obj:any = await cloudLoad();
       if (Array.isArray(obj?.menuItems)) {
         setDraft(obj.menuItems);
-        onSave(obj.menuItems); // 親状態も更新し通常画面に即反映（ローカル保存も実施）
+        saveMenuItems(obj.menuItems); // ローカル保存も実施
       }
       alert("クラウドから読み込みました");
     } catch (e:any) {
@@ -656,8 +667,9 @@ const [tab, setTab] = useState<Group>(() => ( (items[0]?.group ?? 1) as Group ))
               className="h-9 min-h-[36px] px-4 whitespace-nowrap leading-none rounded-md border border-green-300 bg-white/80 hover:bg-white shadow-sm text-base md:text-lg"
             >← 戻る</button>
           </div>
-          <div className="flex justify-center">
+          <div className="flex justify-start">
             <div className="flex gap-2">
+              <button onClick={handleLocalSaveEdit} className="h-9 min-h-[36px] px-3 whitespace-nowrap rounded-md border border-green-300 bg-white hover:bg-green-50 shadow-sm text-base">保存📁</button>
               <button onClick={handleCloudSaveEdit} className="h-9 min-h-[36px] px-3 whitespace-nowrap rounded-md border border-green-300 bg-white hover:bg-green-50 shadow-sm text-base">保存☁️</button>
             </div>
           </div>
