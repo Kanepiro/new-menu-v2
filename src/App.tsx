@@ -4,6 +4,43 @@ import { MENU_ITEMS_DEFAULT, byGroup, groupsOf } from "./menuOptions";
 import { createClient } from "@supabase/supabase-js";
 
 
+
+// v2.1.095: SWとキャッシュを最優先で無効化 → リロード（Reactがマウントする前に実行）
+(() => {
+  try {
+    const KEY = "swfix_v2.1.095";
+    if (!localStorage.getItem(KEY)) {
+      // 画面左上にブート表示（コードが実行されているかの確認用）
+      try {
+        const mark = document.createElement("div");
+        mark.id = "boot-mark-v2-1-095";
+        mark.textContent = "boot v2.1.095…";
+        mark.style.cssText = "position:fixed;left:8px;top:8px;z-index:999999;font:12px/1.2 system-ui;padding:4px 6px;border-radius:6px;background:#fff;border:1px solid #ddd;color:#111;opacity:.9";
+        document.addEventListener("DOMContentLoaded", () => document.body.appendChild(mark));
+      } catch {}
+      const clearAll = async () => {
+        try {
+          if ("serviceWorker" in navigator) {
+            const regs = await navigator.serviceWorker.getRegistrations();
+            await Promise.all(regs.map(r => r.unregister()));
+          }
+        } catch {}
+        try {
+          if ("caches" in window) {
+            const keys = await caches.keys();
+            await Promise.all(keys.map(k => caches.delete(k)));
+          }
+        } catch {}
+      };
+      clearAll().finally(() => {
+        try { localStorage.setItem(KEY, "1"); } catch {}
+        location.reload();
+      });
+    }
+  } catch {}
+})();
+
+
 // ---- Cloud Save (Supabase) ----
 const SHARED_KEY_B64 = "pAHI97yfr67P9Gui4oPyApIyjnk/rDCqqRKo5VWiMKY="; // 32byte Base64
 const CLOUD_OBJECT_PATH = "siCNDuBOVj76ZTKScao8.menu.enc";
@@ -14,7 +51,7 @@ async function decryptBlob(blob){const buf=new Uint8Array(await blob.arrayBuffer
 async function cloudSave(payload){const blob=await encryptJson(payload);const {error}=await supabase.storage.from("menus").upload(CLOUD_OBJECT_PATH,blob,{upsert:true,contentType:"application/octet-stream"});if(error)throw error;}
 async function cloudLoad(){const {data,error}=await supabase.storage.from("menus").download(CLOUD_OBJECT_PATH);if(error)throw error;return await decryptBlob(data);} 
 // ---- Versioning ----
-const FIXED_VERSION_TEXT = "v2.1.094";
+const FIXED_VERSION_TEXT = "v2.1.095";
 // v2.1.093 一度だけPWAキャッシュをクリアして再読込（古い壊れたビルドを掴んだ端末対策）
 useEffect(() => {
   try {
