@@ -544,6 +544,18 @@ function MenuEditor({
   const [draft, setDraft] = useState<MenuItem[]>(() => items.map(i => ({ ...i })));
 
   // Cloud handlers (edit screen)
+
+  // Local-only save (edit screen)
+  const handleLocalSaveEdit = () => {
+    try {
+      onSave(draft); // ローカルのみ保存
+      // 軽いフィードバック（過剰にならないように）
+      // alert("ローカルに保存しました");
+    } catch (e) {
+      console.error(e);
+      alert("ローカル保存に失敗しました");
+    }
+  };
   const handleCloudSaveEdit = async () => {
     try {
       const payload = { menuItems: draft, schemaVersion: 1 };
@@ -649,22 +661,24 @@ const [tab, setTab] = useState<Group>(() => ( (items[0]?.group ?? 1) as Group ))
         <div className="w-full text-center">
           <h1 className="font-bold tracking-wide text-3xl md:text-4xl">メニュー編集</h1>
         </div>
-        <div className="w-full grid grid-cols-3 items-center mt-2">
-          <div className="flex justify-start">
-            <button
-                onClick={onCancel}
-              className="h-9 min-h-[36px] px-4 whitespace-nowrap leading-none rounded-md border border-green-300 bg-white/80 hover:bg-white shadow-sm text-base md:text-lg"
-            >← 戻る</button>
-          </div>
-          <div className="flex justify-center">
-            <div className="flex gap-2">
-              <button onClick={handleCloudSaveEdit} className="h-9 min-h-[36px] px-3 whitespace-nowrap rounded-md border border-green-300 bg-white hover:bg-green-50 shadow-sm text-base">保存☁️</button>
-            </div>
-          </div>
-<div className="flex justify-end">
-            <button onClick={handleCloudLoadEdit} className="h-9 min-h-[36px] px-3 whitespace-nowrap rounded-md border border-green-300 bg-white hover:bg-green-50 shadow-sm text-base">読込☁️</button>
-          </div>
-        </div>
+        <div className="w-full flex items-center gap-2 mt-2">
+  <button
+    onClick={onCancel}
+    className="h-9 min-h-[36px] px-4 whitespace-nowrap rounded-md border border-green-600/40 bg-white/80 hover:bg-white shadow-sm text-base md:text-lg"
+  >←戻る</button>
+  <button
+    onClick={handleLocalSaveEdit}
+    className="h-9 min-h-[36px] px-3 whitespace-nowrap rounded-md border border-green-600/40 bg-white/80 hover:bg-white shadow-sm text-base md:text-lg"
+  >保存📁</button>
+  <button
+    onClick={handleCloudSaveEdit}
+    className="h-9 min-h-[36px] px-3 whitespace-nowrap rounded-md border border-green-600/40 bg-white/80 hover:bg-white shadow-sm text-base md:text-lg"
+  >保存☁️</button>
+  <button
+    onClick={handleCloudLoadEdit}
+    className="h-9 min-h-[36px] px-3 whitespace-nowrap rounded-md border border-green-600/40 bg-white/80 hover:bg-white shadow-sm text-base md:text-lg"
+  >読込☁️</button>
+</div>
       </header>
 
       <main className="w-full max-w-3xl mx-auto px-4 mt-4 flex-1 pb-[calc(env(safe-area-inset-bottom,0px)+7rem)]" data-capture-root="true">
