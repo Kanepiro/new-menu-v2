@@ -14,7 +14,7 @@ async function decryptBlob(blob){const buf=new Uint8Array(await blob.arrayBuffer
 async function cloudSave(payload){const blob=await encryptJson(payload);const {error}=await supabase.storage.from("menus").upload(CLOUD_OBJECT_PATH,blob,{upsert:true,contentType:"application/octet-stream"});if(error)throw error;}
 async function cloudLoad(){const {data,error}=await supabase.storage.from("menus").download(CLOUD_OBJECT_PATH);if(error)throw error;return await decryptBlob(data);} 
 // ---- Versioning ----
-const FIXED_VERSION_TEXT = "v2.1.076";
+const FIXED_VERSION_TEXT = "v2.1.077";
 const VERSION_PREFIX = "2.1"; // major.minor
 const STORAGE_VERSION_PATCH = "menu.version.patch";
 function loadVersionPatch(): number {
@@ -542,6 +542,26 @@ function MenuEditor({
   onSave: (items: MenuItem[]) => void;
 }) {
   const [draft, setDraft] = useState<MenuItem[]>(() => items.map(i => ({ ...i })));
+
+  // Cloud handlers (edit screen)
+  const handleCloudSaveEdit = async () => {
+    try {
+      const payload = { menuItems: draft, schemaVersion: 1 };
+      await cloudSave(payload);
+      alert("クラウドに保存しました");
+    } catch (e:any) {
+      console.error(e); alert("保存に失敗しました\n"+(e?.message??""));
+    }
+  };
+  const handleCloudLoadEdit = async () => {
+    try {
+      const obj:any = await cloudLoad();
+      if (Array.isArray(obj?.menuItems)) setDraft(obj.menuItems);
+      alert("クラウドから読み込みました");
+    } catch (e:any) {
+      console.error(e); alert("読み込みに失敗しました\n"+(e?.message??""));
+    }
+  };
   const [tab, setTab] = useState<Group>(() => ( (items[0]?.group ?? 1) as Group ));
 
   type MapRecord = { [key: number]: Group };
@@ -634,8 +654,8 @@ function MenuEditor({
           </div>
           <div className="flex justify-center">
             <div className="flex gap-2">
-              <button onClick={handleCloudSave} className="h-9 min-h-[36px] px-3 whitespace-nowrap rounded-md border border-green-300 bg-white hover:bg-green-50 shadow-sm text-base">保存(雲)</button>
-              <button onClick={handleCloudLoad} className="h-9 min-h-[36px] px-3 whitespace-nowrap rounded-md border border-green-300 bg-white hover:bg-green-50 shadow-sm text-base">読込(雲)</button>
+              <button onClick={handleCloudSaveEdit} className="h-9 min-h-[36px] px-3 whitespace-nowrap rounded-md border border-green-300 bg-white hover:bg-green-50 shadow-sm text-base">保存(雲)</button>
+              <button onClick={handleCloudLoadEdit} className="h-9 min-h-[36px] px-3 whitespace-nowrap rounded-md border border-green-300 bg-white hover:bg-green-50 shadow-sm text-base">読込(雲)</button>
             </div>
           </div>
 <div className="flex justify-end">
