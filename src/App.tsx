@@ -420,10 +420,10 @@ export default function App() {
           <span className="absolute right-0 text-sm opacity-70">{FIXED_VERSION_TEXT}</span>
         </div>
         
-        <div className="w-full grid grid-cols-4 items-center mt-2 gap-2">
+        <div className="w-full grid grid-cols-4 items-center mt-2">
           <div className="flex justify-start">
             <button
-                onClick={onCancel}
+              onClick={onCancel}
               className="h-9 min-h-[36px] px-4 whitespace-nowrap leading-none rounded-md border border-green-300 bg-white/80 hover:bg-white shadow-sm text-base md:text-lg"
             >← 戻る</button>
           </div>
@@ -438,7 +438,6 @@ export default function App() {
           </div>
         </div>
       </header>
-
 
       <main className="w-full max-w-3xl mx-auto px-4 mt-4 flex-1 pb-[calc(env(safe-area-inset-bottom,0px)+7rem)]" data-capture-root="true">
         <div className="space-y-3">
@@ -536,17 +535,15 @@ function MenuEditor({
 }) {
   const [draft, setDraft] = useState<MenuItem[]>(() => items.map(i => ({ ...i })));
 
-  // Cloud handlers (edit screen)
+  // Local-only save (edit screen)
   const handleLocalSaveEdit = () => {
     try {
-      onSave(draft);
+      onSave(draft); // this updates parent state -> localStorage persists
       alert("ローカルに保存しました");
-    } catch (e) {
-      console.error(e);
-      alert("ローカル保存に失敗しました");
-    }
+    } catch (e) { console.error(e); alert("保存に失敗しました"); }
   };
 
+  // Cloud handlers (edit screen)
   const handleCloudSaveEdit = async () => {
     try {
       const payload = { menuItems: draft, schemaVersion: 1 };
@@ -652,8 +649,7 @@ const [tab, setTab] = useState<Group>(() => ( (items[0]?.group ?? 1) as Group ))
         <div className="w-full text-center">
           <h1 className="font-bold tracking-wide text-3xl md:text-4xl">メニュー編集</h1>
         </div>
-        
-        <div className="w-full grid grid-cols-4 items-center mt-2 gap-2">
+        <div className="w-full grid grid-cols-3 items-center mt-2">
           <div className="flex justify-start">
             <button
                 onClick={onCancel}
@@ -661,17 +657,15 @@ const [tab, setTab] = useState<Group>(() => ( (items[0]?.group ?? 1) as Group ))
             >← 戻る</button>
           </div>
           <div className="flex justify-center">
-            <button onClick={handleLocalSaveEdit} className="h-9 min-h-[36px] px-3 whitespace-nowrap rounded-md border border-green-300 bg-white hover:bg-green-50 shadow-sm text-base">保存📁</button>
+            <div className="flex gap-2">
+              <button onClick={handleCloudSaveEdit} className="h-9 min-h-[36px] px-3 whitespace-nowrap rounded-md border border-green-300 bg-white hover:bg-green-50 shadow-sm text-base">保存☁️</button>
+            </div>
           </div>
-          <div className="flex justify-center">
-            <button onClick={handleCloudSaveEdit} className="h-9 min-h-[36px] px-3 whitespace-nowrap rounded-md border border-green-300 bg-white hover:bg-green-50 shadow-sm text-base">保存☁️</button>
-          </div>
-          <div className="flex justify-end">
+<div className="flex justify-end">
             <button onClick={handleCloudLoadEdit} className="h-9 min-h-[36px] px-3 whitespace-nowrap rounded-md border border-green-300 bg-white hover:bg-green-50 shadow-sm text-base">読込☁️</button>
           </div>
         </div>
       </header>
-
 
       <main className="w-full max-w-3xl mx-auto px-4 mt-4 flex-1 pb-[calc(env(safe-area-inset-bottom,0px)+7rem)]" data-capture-root="true">
         <div className="w-full flex justify-center">
