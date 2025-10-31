@@ -14,7 +14,7 @@ async function decryptBlob(blob){const buf=new Uint8Array(await blob.arrayBuffer
 async function cloudSave(payload){const blob=await encryptJson(payload);const {error}=await supabase.storage.from("menus").upload(CLOUD_OBJECT_PATH,blob,{upsert:true,contentType:"application/octet-stream"});if(error)throw error;}
 async function cloudLoad(){const {data,error}=await supabase.storage.from("menus").download(CLOUD_OBJECT_PATH);if(error)throw error;return await decryptBlob(data);} 
 // ---- Versioning ----
-const FIXED_VERSION_TEXT = "v2.1.086";
+const FIXED_VERSION_TEXT = "v2.1.087";
 const VERSION_PREFIX = "2.1"; // major.minor
 const STORAGE_VERSION_PATCH = "menu.version.patch";
 function loadVersionPatch(): number {
@@ -560,7 +560,7 @@ function MenuEditor({
       const obj:any = await cloudLoad();
       if (Array.isArray(obj?.menuItems)) {
         setDraft(obj.menuItems);
-        saveMenuItems(obj.menuItems); // ローカル保存も実施
+        onSave(obj.menuItems); // 親状態も更新し通常画面に即反映（ローカル保存も実施）
       }
       alert("クラウドから読み込みました");
     } catch (e:any) {
