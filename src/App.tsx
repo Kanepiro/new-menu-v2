@@ -8,43 +8,13 @@ import { createClient } from "@supabase/supabase-js";
 const SHARED_KEY_B64 = "pAHI97yfr67P9Gui4oPyApIyjnk/rDCqqRKo5VWiMKY="; // 32byte Base64
 const CLOUD_OBJECT_PATH = "siCNDuBOVj76ZTKScao8.menu.enc";
 const supabase = createClient(import.meta.env.VITE_SUPABASE_URL, import.meta.env.VITE_SUPABASE_ANON_KEY);
-
-async function getSharedCryptoKey(): Promise<CryptoKey> {
-  const raw = Uint8Array.from(atob(SHARED_KEY_B64), c => c.charCodeAt(0));
-  return crypto.subtle.importKey("raw", raw, "AES-GCM", false, ["encrypt", "decrypt"]);
-}
-async function encryptJson(obj: any): Promise<Blob> {
-  const key = await getSharedCryptoKey();
-  const iv = crypto.getRandomValues(new Uint8Array(12));
-  const data = new TextEncoder().encode(JSON.stringify(obj));
-  const enc = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, data);
-  const header = new Uint8Array(3 + 1 + 12);
-  header.set([0x4E,0x4D,0x32]); // 'N','M','2'
-  header[3] = 1; // ver
-  header.set(iv, 4);
-  return new Blob([header, new Uint8Array(enc)], { type: "application/octet-stream" });
-}
-async function decryptBlob(blob: Blob): Promise<any> {
-  const buf = new Uint8Array(await blob.arrayBuffer());
-  if (!(buf[0]===0x4E && buf[1]===0x4D && buf[2]===0x32 && buf[3]===1)) throw new Error("invalid header");
-  const iv = buf.slice(4, 16);
-  const body = buf.slice(16);
-  const key = await getSharedCryptoKey();
-  const dec = await crypto.subtle.decrypt({ name: "AES-GCM", iv }, key, body);
-  return JSON.parse(new TextDecoder().decode(new Uint8Array(dec)));
-}
-async function cloudSave(payload: any) {
-  const blob = await encryptJson(payload);
-  const { error } = await supabase.storage.from("menus").upload(CLOUD_OBJECT_PATH, blob, { upsert: true, contentType: "application/octet-stream" });
-  if (error) throw error;
-}
-async function cloudLoad(): Promise<any | null> {
-  const { data, error } = await supabase.storage.from("menus").download(CLOUD_OBJECT_PATH);
-  if (error) throw error;
-  return await decryptBlob(data as Blob);
-}
+async function getSharedCryptoKey(){const raw=Uint8Array.from(atob(SHARED_KEY_B64),c=>c.charCodeAt(0));return crypto.subtle.importKey("raw",raw,"AES-GCM",false,["encrypt","decrypt"]);}
+async function encryptJson(obj){const key=await getSharedCryptoKey();const iv=crypto.getRandomValues(new Uint8Array(12));const data=new TextEncoder().encode(JSON.stringify(obj));const enc=await crypto.subtle.encrypt({name:"AES-GCM",iv},key,data);const header=new Uint8Array(16);header.set([0x4E,0x4D,0x32,1]);header.set(iv,4);return new Blob([header,new Uint8Array(enc)],{type:"application/octet-stream"});}
+async function decryptBlob(blob){const buf=new Uint8Array(await blob.arrayBuffer());if(!(buf[0]===0x4E&&buf[1]===0x4D&&buf[2]===0x32&&buf[3]===1))throw new Error("invalid header");const iv=buf.slice(4,16);const body=buf.slice(16);const key=await getSharedCryptoKey();const dec=await crypto.subtle.decrypt({name:"AES-GCM",iv},key,body);return JSON.parse(new TextDecoder().decode(new Uint8Array(dec)));}
+async function cloudSave(payload){const blob=await encryptJson(payload);const {error}=await supabase.storage.from("menus").upload(CLOUD_OBJECT_PATH,blob,{upsert:true,contentType:"application/octet-stream"});if(error)throw error;}
+async function cloudLoad(){const {data,error}=await supabase.storage.from("menus").download(CLOUD_OBJECT_PATH);if(error)throw error;return await decryptBlob(data);} 
 // ---- Versioning ----
-const FIXED_VERSION_TEXT = "v2.1.072";
+const FIXED_VERSION_TEXT = "v2.1.073";
 const VERSION_PREFIX = "2.1"; // major.minor
 const STORAGE_VERSION_PATCH = "menu.version.patch";
 function loadVersionPatch(): number {
@@ -371,30 +341,8 @@ export default function App() {
 
   useEffect(() => { saveRows(rows); }, [rows]);
   useEffect(() => { saveMenuItems(menuItems); }, [menuItems]);
-
-// ---- Cloud Save/Load handlers ----
-const handleCloudSave = async () => {
-  try {
-    const payload = { menuItems, rows, schemaVersion: 1 };
-    await cloudSave(payload);
-    alert("クラウドに保存しました");
-  } catch (e:any) {
-    console.error(e);
-    alert("保存に失敗しました\n" + (e?.message ?? ""));
-  }
-};
-const handleCloudLoad = async () => {
-  try {
-    const obj = await cloudLoad();
-    if (!obj) throw new Error("No Data");
-    if (Array.isArray(obj.menuItems)) setMenuItems(obj.menuItems as MenuItem[]);
-    if (Array.isArray(obj.rows)) setRows(obj.rows as any);
-    alert("クラウドから読み込みました");
-  } catch (e:any) {
-    console.error(e);
-    alert("読み込みに失敗しました\n" + (e?.message ?? ""));
-  }
-};
+  const handleCloudSave = async () => {try{const payload={menuItems,rows,schemaVersion:1};await cloudSave(payload);alert("クラウドに保存しました");}catch(e){console.error(e);alert("保存に失敗しました\n"+(e?.message??""));}};
+  const handleCloudLoad = async () => {try{const obj=await cloudLoad();if(!obj)throw new Error("No Data");if(Array.isArray(obj.menuItems))setMenuItems(obj.menuItems);if(Array.isArray(obj.rows))setRows(obj.rows);alert("クラウドから読み込みました");}catch(e){console.error(e);alert("読み込みに失敗しました\n"+(e?.message??""));}};
 
 
   // ---- Version auto-increment (robust) ----
@@ -469,22 +417,6 @@ const handleCloudLoad = async () => {
       <header className="w-full max-w-3xl mx-auto pt-6 px-4">
         <div className="relative w-full flex items-baseline justify-center min-h-[48px]">
           <h1 className="absolute left-1/2 -translate-x-1/2 font-bold tracking-wide text-2xl sm:text-3xl md:text-4xl whitespace-nowrap">新メニュー表</h1>
-
-{/* Cloud buttons moved to header (between 戻る and 保存) */}
-<div className="hidden mt-2 grid grid-cols-3 gap-2">
-  <div className="flex justify-start">
-    <button onClick={handleCloudSave} className="h-9 min-h-[36px] px-3 whitespace-nowrap rounded-md border border-green-300 bg-white hover:bg-green-50 shadow-sm text-base">
-      保存(雲)
-    </button>
-  </div>
-  <div className="flex justify-center">
-    <button onClick={handleCloudLoad} className="h-9 min-h-[36px] px-3 whitespace-nowrap rounded-md border border-green-300 bg-white hover:bg-green-50 shadow-sm text-base">
-      読込(雲)
-    </button>
-  </div>
-  <div className="flex justify-end"></div>
-</div>
-
           <span className="absolute right-0 text-sm opacity-70">{FIXED_VERSION_TEXT}</span>
         </div>
         <div className="w-full grid grid-cols-3 items-center mt-2">
@@ -692,29 +624,29 @@ function MenuEditor({
           <h1 className="font-bold tracking-wide text-3xl md:text-4xl">メニュー編集</h1>
         </div>
         <div className="w-full grid grid-cols-3 items-center mt-2">
-  <div className="flex justify-start">
-    <button
-      onClick={onCancel}
-      className="h-9 min-h-[36px] px-4 whitespace-nowrap rounded-md border border-green-300 bg-white/80 hover:bg-white shadow-sm text-base md:text-lg"
-    >
-      ← 戻る
-    </button>
-  </div>
-  <div className="flex justify-center">
-    <div className="flex gap-2">
-      <button onClick={handleCloudSave} className="h-9 min-h-[36px] px-3 whitespace-nowrap rounded-md border border-green-300 bg-white hover:bg-green-50 shadow-sm text-base">保存(雲)</button>
-      <button onClick={handleCloudLoad} className="h-9 min-h-[36px] px-3 whitespace-nowrap rounded-md border border-green-300 bg-white hover:bg-green-50 shadow-sm text-base">読込(雲)</button>
-    </div>
-  </div>
-  <div className="flex justify-end">
-    <button
-      onClick={(e) => { onSave(draft); const t=(e.currentTarget as HTMLButtonElement); const pf=t.style.filter; const pt=t.style.transition; t.style.filter="brightness(1.2)"; t.style.transition="filter .2s"; setTimeout(()=>{ t.style.filter=pf; t.style.transition=pt; }, 200); }}
-      className="px-5 py-2 rounded-xl bg-green-600 text-white hover:brightness-110 shadow text-lg"
-    >
-      保存
-    </button>
-  </div>
-</div>
+          <div className="flex justify-start">
+            <button
+              onClick={onCancel}
+              className="h-9 min-h-[36px] px-4 whitespace-nowrap leading-none rounded-md border border-green-300 bg-white/80 hover:bg-white shadow-sm text-base md:text-lg"
+            >
+              ← 戻る
+            </button>
+          </div>
+          <div className="flex justify-center">
+            <div className="flex gap-2">
+              <button onClick={handleCloudSave} className="h-9 min-h-[36px] px-3 whitespace-nowrap rounded-md border border-green-300 bg-white hover:bg-green-50 shadow-sm text-base">保存(雲)</button>
+              <button onClick={handleCloudLoad} className="h-9 min-h-[36px] px-3 whitespace-nowrap rounded-md border border-green-300 bg-white hover:bg-green-50 shadow-sm text-base">読込(雲)</button>
+            </div>
+
+          <div className="flex justify-end">
+            <button
+              onClick={(e) => { onSave(draft); const t=(e.currentTarget as HTMLButtonElement); const pf=t.style.filter, pt=t.style.transition; t.style.transition='filter 0.2s ease'; t.style.filter='brightness(1.2)'; setTimeout(()=>{ t.style.filter=pf; t.style.transition=pt; }, 200); }}
+              className="px-5 py-2 rounded-xl bg-green-600 text-white hover:brightness-110 shadow text-lg"
+            >
+              保存
+            </button>
+          </div>
+        </div>
       </header>
 
       <main className="w-full max-w-3xl mx-auto px-4 mt-4 flex-1 pb-[calc(env(safe-area-inset-bottom,0px)+7rem)]" data-capture-root="true">
