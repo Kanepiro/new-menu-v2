@@ -44,7 +44,7 @@ async function cloudLoad(): Promise<any | null> {
   return await decryptBlob(data as Blob);
 }
 // ---- Versioning ----
-const FIXED_VERSION_TEXT = "v2.1.068";
+const FIXED_VERSION_TEXT = "v2.1.069";
 const VERSION_PREFIX = "2.1"; // major.minor
 const STORAGE_VERSION_PATCH = "menu.version.patch";
 function loadVersionPatch(): number {
@@ -469,9 +469,25 @@ const handleCloudLoad = async () => {
       <header className="w-full max-w-3xl mx-auto pt-6 px-4">
         <div className="relative w-full flex items-baseline justify-center min-h-[48px]">
           <h1 className="absolute left-1/2 -translate-x-1/2 font-bold tracking-wide text-2xl sm:text-3xl md:text-4xl whitespace-nowrap">新メニュー表</h1>
+
+{/* Cloud buttons (編集画面専用) */}
+<div className="mt-2 grid grid-cols-3 gap-2">
+  <div className="flex justify-start">
+    <button onClick={handleCloudSave} className="h-9 min-h-[36px] px-3 whitespace-nowrap rounded-md border border-green-300 bg-white hover:bg-green-50 shadow-sm text-base">
+      保存(雲)
+    </button>
+  </div>
+  <div className="flex justify-center">
+    <button onClick={handleCloudLoad} className="h-9 min-h-[36px] px-3 whitespace-nowrap rounded-md border border-green-300 bg-white hover:bg-green-50 shadow-sm text-base">
+      読込(雲)
+    </button>
+  </div>
+  <div className="flex justify-end"></div>
+</div>
+
           <span className="absolute right-0 text-sm opacity-70">{FIXED_VERSION_TEXT}</span>
         </div>
-        <div className="w-full grid grid-cols-5 items-center mt-2">
+        <div className="w-full grid grid-cols-3 items-center mt-2">
           <div className="flex justify-start">
             <button
               onClick={() => setEditing(true)}
@@ -479,13 +495,6 @@ const handleCloudLoad = async () => {
             >
               編集
             </button>
-          </div>
-
-          <div className="flex justify-center">
-            <button onClick={handleCloudSave} className="h-9 min-h-[36px] px-3 whitespace-nowrap rounded-md border border-green-300 bg-white/80 hover:bg-white shadow-sm text-base md:text-lg">保存(雲)</button>
-          </div>
-          <div className="flex justify-center">
-            <button onClick={handleCloudLoad} className="h-9 min-h-[36px] px-3 whitespace-nowrap rounded-md border border-green-300 bg-white/80 hover:bg-white shadow-sm text-base md:text-lg">読込(雲)</button>
           </div>
           <div className="flex justify-center">
             <button
@@ -682,7 +691,7 @@ function MenuEditor({
         <div className="w-full text-center">
           <h1 className="font-bold tracking-wide text-3xl md:text-4xl">メニュー編集</h1>
         </div>
-        <div className="w-full grid grid-cols-5 items-center mt-2">
+        <div className="w-full grid grid-cols-3 items-center mt-2">
           <div className="flex justify-start">
             <button
               onClick={onCancel}
@@ -713,7 +722,7 @@ function MenuEditor({
 
       <main className="w-full max-w-3xl mx-auto px-4 mt-4 flex-1 pb-[calc(env(safe-area-inset-bottom,0px)+7rem)]" data-capture-root="true">
         <div className="w-full flex justify-center">
-          <div className={"mb-2 rounded-xl border border-green-300 bg-white/80 overflow-hidden " + (currentGroups().length >= 4 ? "grid grid-cols-5" : "inline-flex")}>
+          <div className={"mb-2 rounded-xl border border-green-300 bg-white/80 overflow-hidden " + (currentGroups().length >= 4 ? "grid grid-cols-3" : "inline-flex")}>
             {currentGroups().map((g, idx) => (
               <button
                 key={g}
