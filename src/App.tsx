@@ -1,9 +1,50 @@
 import React, { useEffect, useMemo, useState } from "react";
 import type { Group, MenuItem } from "./menuOptions";
 import { MENU_ITEMS_DEFAULT, byGroup, groupsOf } from "./menuOptions";
+import { createClient } from "@supabase/supabase-js";
 
+
+// ---- Cloud Save (Supabase) ----
+const SHARED_KEY_B64 = "pAHI97yfr67P9Gui4oPyApIyjnk/rDCqqRKo5VWiMKY="; // 32byte Base64
+const CLOUD_OBJECT_PATH = "siCNDuBOVj76ZTKScao8.menu.enc";
+const supabase = createClient(import.meta.env.VITE_SUPABASE_URL, import.meta.env.VITE_SUPABASE_ANON_KEY);
+
+async function getSharedCryptoKey(): Promise<CryptoKey> {
+  const raw = Uint8Array.from(atob(SHARED_KEY_B64), c => c.charCodeAt(0));
+  return crypto.subtle.importKey("raw", raw, "AES-GCM", false, ["encrypt", "decrypt"]);
+}
+async function encryptJson(obj: any): Promise<Blob> {
+  const key = await getSharedCryptoKey();
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const data = new TextEncoder().encode(JSON.stringify(obj));
+  const enc = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, data);
+  const header = new Uint8Array(3 + 1 + 12);
+  header.set([0x4E,0x4D,0x32]); // 'N','M','2'
+  header[3] = 1; // ver
+  header.set(iv, 4);
+  return new Blob([header, new Uint8Array(enc)], { type: "application/octet-stream" });
+}
+async function decryptBlob(blob: Blob): Promise<any> {
+  const buf = new Uint8Array(await blob.arrayBuffer());
+  if (!(buf[0]===0x4E && buf[1]===0x4D && buf[2]===0x32 && buf[3]===1)) throw new Error("invalid header");
+  const iv = buf.slice(4, 16);
+  const body = buf.slice(16);
+  const key = await getSharedCryptoKey();
+  const dec = await crypto.subtle.decrypt({ name: "AES-GCM", iv }, key, body);
+  return JSON.parse(new TextDecoder().decode(new Uint8Array(dec)));
+}
+async function cloudSave(payload: any) {
+  const blob = await encryptJson(payload);
+  const { error } = await supabase.storage.from("menus").upload(CLOUD_OBJECT_PATH, blob, { upsert: true, contentType: "application/octet-stream" });
+  if (error) throw error;
+}
+async function cloudLoad(): Promise<any | null> {
+  const { data, error } = await supabase.storage.from("menus").download(CLOUD_OBJECT_PATH);
+  if (error) throw error;
+  return await decryptBlob(data as Blob);
+}
 // ---- Versioning ----
-const FIXED_VERSION_TEXT = "v2.1.067";
+const FIXED_VERSION_TEXT = "v2.1.068";
 const VERSION_PREFIX = "2.1"; // major.minor
 const STORAGE_VERSION_PATCH = "menu.version.patch";
 function loadVersionPatch(): number {
@@ -331,6 +372,31 @@ export default function App() {
   useEffect(() => { saveRows(rows); }, [rows]);
   useEffect(() => { saveMenuItems(menuItems); }, [menuItems]);
 
+// ---- Cloud Save/Load handlers ----
+const handleCloudSave = async () => {
+  try {
+    const payload = { menuItems, rows, schemaVersion: 1 };
+    await cloudSave(payload);
+    alert("クラウドに保存しました");
+  } catch (e:any) {
+    console.error(e);
+    alert("保存に失敗しました\n" + (e?.message ?? ""));
+  }
+};
+const handleCloudLoad = async () => {
+  try {
+    const obj = await cloudLoad();
+    if (!obj) throw new Error("No Data");
+    if (Array.isArray(obj.menuItems)) setMenuItems(obj.menuItems as MenuItem[]);
+    if (Array.isArray(obj.rows)) setRows(obj.rows as any);
+    alert("クラウドから読み込みました");
+  } catch (e:any) {
+    console.error(e);
+    alert("読み込みに失敗しました\n" + (e?.message ?? ""));
+  }
+};
+
+
   // ---- Version auto-increment (robust) ----
   const prevSnapRef = React.useRef<string | null>(null);
   useEffect(() => {
@@ -405,7 +471,7 @@ export default function App() {
           <h1 className="absolute left-1/2 -translate-x-1/2 font-bold tracking-wide text-2xl sm:text-3xl md:text-4xl whitespace-nowrap">新メニュー表</h1>
           <span className="absolute right-0 text-sm opacity-70">{FIXED_VERSION_TEXT}</span>
         </div>
-        <div className="w-full grid grid-cols-3 items-center mt-2">
+        <div className="w-full grid grid-cols-5 items-center mt-2">
           <div className="flex justify-start">
             <button
               onClick={() => setEditing(true)}
@@ -413,6 +479,13 @@ export default function App() {
             >
               編集
             </button>
+          </div>
+
+          <div className="flex justify-center">
+            <button onClick={handleCloudSave} className="h-9 min-h-[36px] px-3 whitespace-nowrap rounded-md border border-green-300 bg-white/80 hover:bg-white shadow-sm text-base md:text-lg">保存(雲)</button>
+          </div>
+          <div className="flex justify-center">
+            <button onClick={handleCloudLoad} className="h-9 min-h-[36px] px-3 whitespace-nowrap rounded-md border border-green-300 bg-white/80 hover:bg-white shadow-sm text-base md:text-lg">読込(雲)</button>
           </div>
           <div className="flex justify-center">
             <button
@@ -609,7 +682,7 @@ function MenuEditor({
         <div className="w-full text-center">
           <h1 className="font-bold tracking-wide text-3xl md:text-4xl">メニュー編集</h1>
         </div>
-        <div className="w-full grid grid-cols-3 items-center mt-2">
+        <div className="w-full grid grid-cols-5 items-center mt-2">
           <div className="flex justify-start">
             <button
               onClick={onCancel}
@@ -640,7 +713,7 @@ function MenuEditor({
 
       <main className="w-full max-w-3xl mx-auto px-4 mt-4 flex-1 pb-[calc(env(safe-area-inset-bottom,0px)+7rem)]" data-capture-root="true">
         <div className="w-full flex justify-center">
-          <div className={"mb-2 rounded-xl border border-green-300 bg-white/80 overflow-hidden " + (currentGroups().length >= 4 ? "grid grid-cols-3" : "inline-flex")}>
+          <div className={"mb-2 rounded-xl border border-green-300 bg-white/80 overflow-hidden " + (currentGroups().length >= 4 ? "grid grid-cols-5" : "inline-flex")}>
             {currentGroups().map((g, idx) => (
               <button
                 key={g}
