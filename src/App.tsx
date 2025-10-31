@@ -661,10 +661,10 @@ const [tab, setTab] = useState<Group>(() => ( (items[0]?.group ?? 1) as Group ))
           <h1 className="font-bold tracking-wide text-3xl md:text-4xl">メニュー編集</h1>
         </div>
         <div className="w-full flex items-center gap-2 mt-2">
-  <button onClick={{'onCancel'}} className="h-9 min-h-[36px] px-4 whitespace-nowrap rounded-lg border border-green-300 bg-white/80 hover:bg-white shadow-sm text-base md:text-lg">←戻る</button>
-  <button onClick={{'handleLocalSaveEdit'}} className="h-9 min-h-[36px] px-3 whitespace-nowrap rounded-lg border border-green-300 bg-white hover:bg-green-50 shadow-sm text-base">保存📁</button>
-  <button onClick={{'handleCloudSaveEdit'}} className="h-9 min-h-[36px] px-3 whitespace-nowrap rounded-lg border border-green-300 bg-white hover:bg-green-50 shadow-sm text-base">保存☁️</button>
-  <button onClick={{'handleCloudLoadEdit'}} className="h-9 min-h-[36px] px-3 whitespace-nowrap rounded-lg border border-green-300 bg-white hover:bg-green-50 shadow-sm text-base">読込☁️</button>
+  <button onClick={onCancel} className="h-9 min-h-[36px] px-4 whitespace-nowrap rounded-lg border border-green-300 bg-white/80 hover:bg-white shadow-sm text-base md:text-lg">←戻る</button>
+  <button onClick={handleLocalSaveEdit} className="h-9 min-h-[36px] px-3 whitespace-nowrap rounded-lg border border-green-300 bg-white hover:bg-green-50 shadow-sm text-base">保存📁</button>
+  <button onClick={handleCloudSaveEdit} className="h-9 min-h-[36px] px-3 whitespace-nowrap rounded-lg border border-green-300 bg-white hover:bg-green-50 shadow-sm text-base">保存☁️</button>
+  <button onClick={handleCloudLoadEdit} className="h-9 min-h-[36px] px-3 whitespace-nowrap rounded-lg border border-green-300 bg-white hover:bg-green-50 shadow-sm text-base">読込☁️</button>
 </div>
       </header>
 
