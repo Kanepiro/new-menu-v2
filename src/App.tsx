@@ -44,7 +44,7 @@ async function cloudLoad(): Promise<any | null> {
   return await decryptBlob(data as Blob);
 }
 // ---- Versioning ----
-const FIXED_VERSION_TEXT = "v2.1.071";
+const FIXED_VERSION_TEXT = "v2.1.072";
 const VERSION_PREFIX = "2.1"; // major.minor
 const STORAGE_VERSION_PATCH = "menu.version.patch";
 function loadVersionPatch(): number {
@@ -692,33 +692,29 @@ function MenuEditor({
           <h1 className="font-bold tracking-wide text-3xl md:text-4xl">メニュー編集</h1>
         </div>
         <div className="w-full grid grid-cols-3 items-center mt-2">
-          <div className="flex justify-start">
-            <button
-              onClick={onCancel}
-              className="h-9 min-h-[36px] px-4 whitespace-nowrap leading-none rounded-md border border-green-300 bg-white/80 hover:bg-white shadow-sm text-base md:text-lg"
-            >
-              ← 戻る
-            </button>
-{/* 追加: クラウド操作（編集画面の戻ると保存の間） */}
-<div className="flex gap-2">
-  <button onClick={handleCloudSave} className="h-9 min-h-[36px] px-3 rounded-md border border-green-300 bg-white hover:bg-green-50 shadow-sm text-base">保存(雲)</button>
-  <button onClick={handleCloudLoad} className="h-9 min-h-[36px] px-3 rounded-md border border-green-300 bg-white hover:bg-green-50 shadow-sm text-base">読込(雲)</button>
+  <div className="flex justify-start">
+    <button
+      onClick={onCancel}
+      className="h-9 min-h-[36px] px-4 whitespace-nowrap rounded-md border border-green-300 bg-white/80 hover:bg-white shadow-sm text-base md:text-lg"
+    >
+      ← 戻る
+    </button>
+  </div>
+  <div className="flex justify-center">
+    <div className="flex gap-2">
+      <button onClick={handleCloudSave} className="h-9 min-h-[36px] px-3 whitespace-nowrap rounded-md border border-green-300 bg-white hover:bg-green-50 shadow-sm text-base">保存(雲)</button>
+      <button onClick={handleCloudLoad} className="h-9 min-h-[36px] px-3 whitespace-nowrap rounded-md border border-green-300 bg-white hover:bg-green-50 shadow-sm text-base">読込(雲)</button>
+    </div>
+  </div>
+  <div className="flex justify-end">
+    <button
+      onClick={(e) => { onSave(draft); const t=(e.currentTarget as HTMLButtonElement); const pf=t.style.filter; const pt=t.style.transition; t.style.filter="brightness(1.2)"; t.style.transition="filter .2s"; setTimeout(()=>{ t.style.filter=pf; t.style.transition=pt; }, 200); }}
+      className="px-5 py-2 rounded-xl bg-green-600 text-white hover:brightness-110 shadow text-lg"
+    >
+      保存
+    </button>
+  </div>
 </div>
-
-          </div>
-          <div className="flex justify-center gap-2">
-  <button onClick={handleCloudSave} className="h-9 min-h-[36px] px-3 whitespace-nowrap rounded-md border border-green-300 bg-white hover:bg-green-50 shadow-sm text-base">保存(雲)</button>
-  <button onClick={handleCloudLoad} className="h-9 min-h-[36px] px-3 whitespace-nowrap rounded-md border border-green-300 bg-white hover:bg-green-50 shadow-sm text-base">読込(雲)</button>
-</div>
-          <div className="flex justify-end">
-            <button
-              onClick={(e) => { onSave(draft); const t=(e.currentTarget as HTMLButtonElement); const pf=t.style.filter, pt=t.style.transition; t.style.transition='filter 0.2s ease'; t.style.filter='brightness(1.2)'; setTimeout(()=>{ t.style.filter=pf; t.style.transition=pt; }, 200); }}
-              className="px-5 py-2 rounded-xl bg-green-600 text-white hover:brightness-110 shadow text-lg"
-            >
-              保存
-            </button>
-          </div>
-        </div>
       </header>
 
       <main className="w-full max-w-3xl mx-auto px-4 mt-4 flex-1 pb-[calc(env(safe-area-inset-bottom,0px)+7rem)]" data-capture-root="true">
