@@ -44,7 +44,7 @@ async function cloudLoad(): Promise<any | null> {
   return await decryptBlob(data as Blob);
 }
 // ---- Versioning ----
-const FIXED_VERSION_TEXT = "v2.1.070";
+const FIXED_VERSION_TEXT = "v2.1.071";
 const VERSION_PREFIX = "2.1"; // major.minor
 const STORAGE_VERSION_PATCH = "menu.version.patch";
 function loadVersionPatch(): number {
@@ -706,15 +706,10 @@ function MenuEditor({
 </div>
 
           </div>
-          <div className="flex justify-center">
-            <button style={{display:"none"}} disabled aria-hidden="true"
-              onClick={resetToDefault}
-              className="hidden h-9 min-h-[36px] px-4 whitespace-nowrap leading-none rounded-md border border-amber-300 bg-white/80 hover:bg-amber-50 shadow-sm text-base md:text-lg"
-              title="既定メニューへ戻す（自動保存）"
-            >
-              既定に戻す
-            </button>
-          </div>
+          <div className="flex justify-center gap-2">
+  <button onClick={handleCloudSave} className="h-9 min-h-[36px] px-3 whitespace-nowrap rounded-md border border-green-300 bg-white hover:bg-green-50 shadow-sm text-base">保存(雲)</button>
+  <button onClick={handleCloudLoad} className="h-9 min-h-[36px] px-3 whitespace-nowrap rounded-md border border-green-300 bg-white hover:bg-green-50 shadow-sm text-base">読込(雲)</button>
+</div>
           <div className="flex justify-end">
             <button
               onClick={(e) => { onSave(draft); const t=(e.currentTarget as HTMLButtonElement); const pf=t.style.filter, pt=t.style.transition; t.style.transition='filter 0.2s ease'; t.style.filter='brightness(1.2)'; setTimeout(()=>{ t.style.filter=pf; t.style.transition=pt; }, 200); }}
