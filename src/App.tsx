@@ -4,43 +4,6 @@ import { MENU_ITEMS_DEFAULT, byGroup, groupsOf } from "./menuOptions";
 import { createClient } from "@supabase/supabase-js";
 
 
-
-// v2.1.095: SWとキャッシュを最優先で無効化 → リロード（Reactがマウントする前に実行）
-(() => {
-  try {
-    const KEY = "swfix_v2.1.095";
-    if (!localStorage.getItem(KEY)) {
-      // 画面左上にブート表示（コードが実行されているかの確認用）
-      try {
-        const mark = document.createElement("div");
-        mark.id = "boot-mark-v2-1-095";
-        mark.textContent = "boot v2.1.095…";
-        mark.style.cssText = "position:fixed;left:8px;top:8px;z-index:999999;font:12px/1.2 system-ui;padding:4px 6px;border-radius:6px;background:#fff;border:1px solid #ddd;color:#111;opacity:.9";
-        document.addEventListener("DOMContentLoaded", () => document.body.appendChild(mark));
-      } catch {}
-      const clearAll = async () => {
-        try {
-          if ("serviceWorker" in navigator) {
-            const regs = await navigator.serviceWorker.getRegistrations();
-            await Promise.all(regs.map(r => r.unregister()));
-          }
-        } catch {}
-        try {
-          if ("caches" in window) {
-            const keys = await caches.keys();
-            await Promise.all(keys.map(k => caches.delete(k)));
-          }
-        } catch {}
-      };
-      clearAll().finally(() => {
-        try { localStorage.setItem(KEY, "1"); } catch {}
-        location.reload();
-      });
-    }
-  } catch {}
-})();
-
-
 // ---- Cloud Save (Supabase) ----
 const SHARED_KEY_B64 = "pAHI97yfr67P9Gui4oPyApIyjnk/rDCqqRKo5VWiMKY="; // 32byte Base64
 const CLOUD_OBJECT_PATH = "siCNDuBOVj76ZTKScao8.menu.enc";
@@ -51,23 +14,7 @@ async function decryptBlob(blob){const buf=new Uint8Array(await blob.arrayBuffer
 async function cloudSave(payload){const blob=await encryptJson(payload);const {error}=await supabase.storage.from("menus").upload(CLOUD_OBJECT_PATH,blob,{upsert:true,contentType:"application/octet-stream"});if(error)throw error;}
 async function cloudLoad(){const {data,error}=await supabase.storage.from("menus").download(CLOUD_OBJECT_PATH);if(error)throw error;return await decryptBlob(data);} 
 // ---- Versioning ----
-const FIXED_VERSION_TEXT = "v2.1.095";
-// v2.1.093 一度だけPWAキャッシュをクリアして再読込（古い壊れたビルドを掴んだ端末対策）
-useEffect(() => {
-  try {
-    const k = "cachefix_v2.1.093";
-    if (!localStorage.getItem(k) && "caches" in window) {
-      caches.keys().then(keys => Promise.all(keys.map(caches.delete))).finally(() => {
-        localStorage.setItem(k, "1");
-        location.reload();
-      });
-    }
-  } catch (e) {
-    // 何もしない（最悪でも画面が表示されるように）
-    console.warn(e);
-  }
-}, []);
-
+const FIXED_VERSION_TEXT = "v2.1.087";
 const VERSION_PREFIX = "2.1"; // major.minor
 const STORAGE_VERSION_PATCH = "menu.version.patch";
 function loadVersionPatch(): number {
@@ -472,26 +419,32 @@ export default function App() {
           <h1 className="absolute left-1/2 -translate-x-1/2 font-bold tracking-wide text-2xl sm:text-3xl md:text-4xl whitespace-nowrap">新メニュー表</h1>
           <span className="absolute right-0 text-sm opacity-70">{FIXED_VERSION_TEXT}</span>
         </div>
-        <div className="w-full flex items-center justify-between mt-2">
-  {/* 左：←戻る／保存📁 */}
-  <div className="flex items-center gap-2">
-    <button
-      onClick={onCancel}
-      className="h-9 min-h-[36px] px-4 whitespace-nowrap rounded-xl border border-gray-200 bg-white/80 hover:bg-white shadow-sm text-base md:text-lg"
-    >←戻る</button>
-    <button
-      onClick={handleLocalSaveEdit}
-      className="h-9 min-h-[36px] px-4 whitespace-nowrap rounded-xl border border-gray-200 bg-white hover:bg-green-50 shadow-sm text-base md:text-lg"
-    >保存📁</button>
-  </div>
-
-  {/* 右：保存☁️／読込☁️ */}
-  <div className="flex items-center gap-2">
-    <button onClick={handleCloudSaveEdit} className="h-9 min-h-[36px] px-4 whitespace-nowrap rounded-xl border border-gray-200 bg-white hover:bg-green-50 shadow-sm text-base md:text-lg">保存☁️</button>
-    <button onClick={handleCloudLoadEdit} className="h-9 min-h-[36px] px-4 whitespace-nowrap rounded-xl border border-gray-200 bg-white hover:bg-green-50 shadow-sm text-base md:text-lg">読込☁️</button>
-  </div>
-</div>
-
+        <div className="w-full grid grid-cols-3 items-center mt-2">
+          <div className="flex justify-start">
+            <button
+              onClick={() => setEditing(true)}
+              className="h-9 min-h-[36px] px-4 whitespace-nowrap leading-none rounded-md border border-green-300 bg-white/80 hover:bg-white shadow-sm text-base md:text-lg"
+            >
+              編集
+            </button>
+          </div>
+          <div className="flex justify-center">
+            <button
+              onClick={() => setPdfOpen(true)}
+              className="h-9 min-h-[36px] px-5 whitespace-nowrap leading-none rounded-md border border-green-300 bg-white/80 hover:bg-white shadow-sm text-base md:text-lg"
+            >
+              PDF
+            </button>
+          </div>
+          <div className="flex justify-end">
+            <button
+              onClick={handleReset}
+              className="h-9 min-h-[36px] px-4 whitespace-nowrap leading-none rounded-md border border-green-300 bg-white/80 hover:bg-white shadow-sm text-base md:text-lg"
+            >
+              リセット
+            </button>
+          </div>
+        </div>
       </header>
 
       <main className="w-full max-w-3xl mx-auto px-4 mt-4 flex-1 pb-[calc(env(safe-area-inset-bottom,0px)+7rem)]" data-capture-root="true">
@@ -696,12 +649,12 @@ const [tab, setTab] = useState<Group>(() => ( (items[0]?.group ?? 1) as Group ))
         <div className="w-full text-center">
           <h1 className="font-bold tracking-wide text-3xl md:text-4xl">メニュー編集</h1>
         </div>
-        <div className="w-full flex items-center justify-between mt-2">
+        <div className="w-full grid grid-cols-3 items-center mt-2">
           <div className="flex justify-start">
             <button
                 onClick={onCancel}
               className="h-9 min-h-[36px] px-4 whitespace-nowrap leading-none rounded-md border border-green-300 bg-white/80 hover:bg-white shadow-sm text-base md:text-lg"
-            >←戻る</button>
+            >← 戻る</button>
           </div>
           <div className="flex justify-center">
             <div className="flex gap-2">
