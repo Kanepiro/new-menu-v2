@@ -14,7 +14,7 @@ async function decryptBlob(blob){const buf=new Uint8Array(await blob.arrayBuffer
 async function cloudSave(payload){const blob=await encryptJson(payload);const {error}=await supabase.storage.from("menus").upload(CLOUD_OBJECT_PATH,blob,{upsert:true,contentType:"application/octet-stream"});if(error)throw error;}
 async function cloudLoad(){const {data,error}=await supabase.storage.from("menus").download(CLOUD_OBJECT_PATH);if(error)throw error;return await decryptBlob(data);} 
 // ---- Versioning ----
-const FIXED_VERSION_TEXT = "v2.1.088";
+const FIXED_VERSION_TEXT = "v2.1.089";
 const VERSION_PREFIX = "2.1"; // major.minor
 const STORAGE_VERSION_PATCH = "menu.version.patch";
 function loadVersionPatch(): number {
@@ -342,7 +342,7 @@ export default function App() {
   useEffect(() => { saveRows(rows); }, [rows]);
   useEffect(() => { saveMenuItems(menuItems); }, [menuItems]);
   const handleCloudSave = async () => {try{const payload={menuItems,rows,schemaVersion:1};await cloudSave(payload);alert("クラウドに保存しました");}catch(e){console.error(e);alert("保存に失敗しました\n"+(e?.message??""));}};
-  const handleCloudLoad = async () => {try{const obj=await cloudLoad();if(!obj)throw new Error("No Data");if(Array.isArray(obj.menuItems))setMenuItems(obj.menuItems);if(Array.isArray(obj.rows))setRows(obj.rows);alert("クラウドから読み込みました");}catch(e){console.error(e);alert("読み込みに失敗しました\n"+(e?.message??""));}};
+  const handleCloudLoad = async () => {try{const obj=await cloudLoad();if(!obj)throw new Error("No Data");if(Array.isArray(obj.menuItems))setMenuItems(obj.menuItems);if(Array.isArray(obj.rows))setRows(obj.rows);showToast("クラウドから読み込みました");}catch(e){console.error(e);alert("読み込みに失敗しました\n"+(e?.message??""));}};
 
 
   // ---- Version auto-increment (robust) ----
@@ -541,7 +541,14 @@ function MenuEditor({
   onCancel: () => void;
   onSave: (items: MenuItem[]) => void;
 }) {
-  const [draft, setDraft] = useState<MenuItem[]>(() => items.map(i => ({ ...i })));
+  
+  // --- ephemeral toast overlay (0.5s) ---
+  const [toastMsg, setToastMsg] = useState<string | null>(null);
+  const showToast = (msg: string) => {
+    setToastMsg(msg);
+    setTimeout(() => setToastMsg(null), 500);
+  };
+const [draft, setDraft] = useState<MenuItem[]>(() => items.map(i => ({ ...i })));
 
   // Cloud handlers (edit screen)
   const handleCloudSaveEdit = async () => {
@@ -549,7 +556,7 @@ function MenuEditor({
       const payload = { menuItems: draft, schemaVersion: 1 };
       await cloudSave(payload);
       onSave(draft); // ローカル保存も同時に
-      alert("保存しました（クラウド／ローカル）");
+      showToast("保存しました(クラウド／ローカル)");
     } catch (e:any) {
       console.error(e);
       alert("保存に失敗しました\n"+(e?.message??""));
@@ -562,7 +569,7 @@ function MenuEditor({
         setDraft(obj.menuItems);
         onSave(obj.menuItems); // 親状態も更新し通常画面に即反映（ローカル保存も実施）
       }
-      alert("クラウドから読み込みました");
+      showToast("クラウドから読み込みました");
     } catch (e:any) {
       console.error(e);
       alert("読み込みに失敗しました\n"+(e?.message??""));
@@ -574,7 +581,7 @@ function MenuEditor({
     try {
       saveMenuItems(draft);
       onSave(draft);
-      alert("ローカルに保存しました");
+      showToast("ローカルに一時保存しました");
     } catch (e) {
       console.error(e);
       alert("ローカル保存に失敗しました");
@@ -672,7 +679,15 @@ const [tab, setTab] = useState<Group>(() => ( (items[0]?.group ?? 1) as Group ))
     <button onClick={handleCloudLoadEdit} className="h-9 min-h-[36px] px-4 whitespace-nowrap rounded-lg border border-green-300 bg-white hover:bg-green-50 shadow-sm text-base">読込☁️</button>
   </div>
 </div>
-      </header>
+      
+        {toastMsg && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center pointer-events-none">
+            <div className="pointer-events-auto px-4 py-3 rounded-xl shadow-lg bg-black/80 text-white text-sm md:text-base">
+              {toastMsg}
+            </div>
+          </div>
+        )}
+</header>
 
       <main className="w-full max-w-3xl mx-auto px-4 mt-4 flex-1 pb-[calc(env(safe-area-inset-bottom,0px)+7rem)]" data-capture-root="true">
         <div className="w-full flex justify-center">
