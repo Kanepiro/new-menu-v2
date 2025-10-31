@@ -14,7 +14,7 @@ async function decryptBlob(blob){const buf=new Uint8Array(await blob.arrayBuffer
 async function cloudSave(payload){const blob=await encryptJson(payload);const {error}=await supabase.storage.from("menus").upload(CLOUD_OBJECT_PATH,blob,{upsert:true,contentType:"application/octet-stream"});if(error)throw error;}
 async function cloudLoad(){const {data,error}=await supabase.storage.from("menus").download(CLOUD_OBJECT_PATH);if(error)throw error;return await decryptBlob(data);} 
 // ---- Versioning ----
-const FIXED_VERSION_TEXT = "v2.1.087";
+const FIXED_VERSION_TEXT = "v2.1.088";
 const VERSION_PREFIX = "2.1"; // major.minor
 const STORAGE_VERSION_PATCH = "menu.version.patch";
 function loadVersionPatch(): number {
@@ -568,6 +568,18 @@ function MenuEditor({
       alert("読み込みに失敗しました\n"+(e?.message??""));
     }
   };
+
+  // ローカル保存（編集画面のみ）
+  const handleLocalSaveEdit = () => {
+    try {
+      saveMenuItems(draft);
+      onSave(draft);
+      alert("ローカルに保存しました");
+    } catch (e) {
+      console.error(e);
+      alert("ローカル保存に失敗しました");
+    }
+  };
 const [tab, setTab] = useState<Group>(() => ( (items[0]?.group ?? 1) as Group ));
 
   type MapRecord = { [key: number]: Group };
@@ -650,21 +662,16 @@ const [tab, setTab] = useState<Group>(() => ( (items[0]?.group ?? 1) as Group ))
           <h1 className="font-bold tracking-wide text-3xl md:text-4xl">メニュー編集</h1>
         </div>
         <div className="w-full grid grid-cols-3 items-center mt-2">
-          <div className="flex justify-start">
-            <button
-                onClick={onCancel}
-              className="h-9 min-h-[36px] px-4 whitespace-nowrap leading-none rounded-md border border-green-300 bg-white/80 hover:bg-white shadow-sm text-base md:text-lg"
-            >← 戻る</button>
-          </div>
-          <div className="flex justify-center">
-            <div className="flex gap-2">
-              <button onClick={handleCloudSaveEdit} className="h-9 min-h-[36px] px-3 whitespace-nowrap rounded-md border border-green-300 bg-white hover:bg-green-50 shadow-sm text-base">保存☁️</button>
-            </div>
-          </div>
-<div className="flex justify-end">
-            <button onClick={handleCloudLoadEdit} className="h-9 min-h-[36px] px-3 whitespace-nowrap rounded-md border border-green-300 bg-white hover:bg-green-50 shadow-sm text-base">読込☁️</button>
-          </div>
-        </div>
+  <div className="flex items-center gap-2 justify-start">
+    <button onClick={onCancel} className="h-9 min-h-[36px] px-4 whitespace-nowrap rounded-lg border border-green-300 bg-white/80 hover:bg-white shadow-sm text-base md:text-lg">← 戻る</button>
+    <button onClick={handleLocalSaveEdit} className="h-9 min-h-[36px] px-4 whitespace-nowrap rounded-lg border border-green-300 bg-white hover:bg-green-50 shadow-sm text-base md:text-lg">保存📁</button>
+  </div>
+  <div className="flex justify-center">{/* 中央は空（センタリング解除） */}</div>
+  <div className="flex items-center gap-2 justify-end">
+    <button onClick={handleCloudSaveEdit} className="h-9 min-h-[36px] px-4 whitespace-nowrap rounded-lg border border-green-300 bg-white hover:bg-green-50 shadow-sm text-base">保存☁️</button>
+    <button onClick={handleCloudLoadEdit} className="h-9 min-h-[36px] px-4 whitespace-nowrap rounded-lg border border-green-300 bg-white hover:bg-green-50 shadow-sm text-base">読込☁️</button>
+  </div>
+</div>
       </header>
 
       <main className="w-full max-w-3xl mx-auto px-4 mt-4 flex-1 pb-[calc(env(safe-area-inset-bottom,0px)+7rem)]" data-capture-root="true">
