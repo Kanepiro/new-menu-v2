@@ -14,7 +14,23 @@ async function decryptBlob(blob){const buf=new Uint8Array(await blob.arrayBuffer
 async function cloudSave(payload){const blob=await encryptJson(payload);const {error}=await supabase.storage.from("menus").upload(CLOUD_OBJECT_PATH,blob,{upsert:true,contentType:"application/octet-stream"});if(error)throw error;}
 async function cloudLoad(){const {data,error}=await supabase.storage.from("menus").download(CLOUD_OBJECT_PATH);if(error)throw error;return await decryptBlob(data);} 
 // ---- Versioning ----
-const FIXED_VERSION_TEXT = "v2.1.092";
+const FIXED_VERSION_TEXT = "v2.1.093";
+// v2.1.093 一度だけPWAキャッシュをクリアして再読込（古い壊れたビルドを掴んだ端末対策）
+useEffect(() => {
+  try {
+    const k = "cachefix_v2.1.093";
+    if (!localStorage.getItem(k) && "caches" in window) {
+      caches.keys().then(keys => Promise.all(keys.map(caches.delete))).finally(() => {
+        localStorage.setItem(k, "1");
+        location.reload();
+      });
+    }
+  } catch (e) {
+    // 何もしない（最悪でも画面が表示されるように）
+    console.warn(e);
+  }
+}, []);
+
 const VERSION_PREFIX = "2.1"; // major.minor
 const STORAGE_VERSION_PATCH = "menu.version.patch";
 function loadVersionPatch(): number {
@@ -643,7 +659,7 @@ const [tab, setTab] = useState<Group>(() => ( (items[0]?.group ?? 1) as Group ))
         <div className="w-full text-center">
           <h1 className="font-bold tracking-wide text-3xl md:text-4xl">メニュー編集</h1>
         </div>
-        <div className="w-full grid grid-cols-3 items-center mt-2">
+        <div className="w-full flex items-center justify-between mt-2">
           <div className="flex justify-start">
             <button
                 onClick={onCancel}
