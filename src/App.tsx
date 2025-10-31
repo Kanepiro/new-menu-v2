@@ -14,7 +14,7 @@ async function decryptBlob(blob){const buf=new Uint8Array(await blob.arrayBuffer
 async function cloudSave(payload){const blob=await encryptJson(payload);const {error}=await supabase.storage.from("menus").upload(CLOUD_OBJECT_PATH,blob,{upsert:true,contentType:"application/octet-stream"});if(error)throw error;}
 async function cloudLoad(){const {data,error}=await supabase.storage.from("menus").download(CLOUD_OBJECT_PATH);if(error)throw error;return await decryptBlob(data);} 
 // ---- Versioning ----
-const FIXED_VERSION_TEXT = "v2.1.085";
+const FIXED_VERSION_TEXT = "v2.1.086";
 const VERSION_PREFIX = "2.1"; // major.minor
 const STORAGE_VERSION_PATCH = "menu.version.patch";
 function loadVersionPatch(): number {
@@ -548,17 +548,11 @@ function MenuEditor({
     try {
       const payload = { menuItems: draft, schemaVersion: 1 };
       await cloudSave(payload);
-      // ローカルにも保存（既存の保存処理を再利用）
-      onSave(draft);
+      onSave(draft); // ローカル保存も同時に
       alert("保存しました（クラウド／ローカル）");
     } catch (e:any) {
-      console.error(e); alert("保存に失敗しました\n"+(e?.message??""));
-    }
-  };
-      await cloudSave(payload);
-      alert("クラウドに保存しました");
-    } catch (e:any) {
-      console.error(e); alert("保存に失敗しました\n"+(e?.message??""));
+      console.error(e);
+      alert("保存に失敗しました\n"+(e?.message??""));
     }
   };
   const handleCloudLoadEdit = async () => {
@@ -566,15 +560,15 @@ function MenuEditor({
       const obj:any = await cloudLoad();
       if (Array.isArray(obj?.menuItems)) {
         setDraft(obj.menuItems);
-        // 同時にローカルへも保存
-        saveMenuItems(obj.menuItems);
+        saveMenuItems(obj.menuItems); // ローカル保存も実施
       }
       alert("クラウドから読み込みました");
     } catch (e:any) {
-      console.error(e); alert("読み込みに失敗しました\n"+(e?.message??""));
+      console.error(e);
+      alert("読み込みに失敗しました\n"+(e?.message??""));
     }
   };
-  const [tab, setTab] = useState<Group>(() => ( (items[0]?.group ?? 1) as Group ));
+const [tab, setTab] = useState<Group>(() => ( (items[0]?.group ?? 1) as Group ));
 
   type MapRecord = { [key: number]: Group };
 
