@@ -44,7 +44,7 @@ async function cloudLoad(): Promise<any | null> {
   return await decryptBlob(data as Blob);
 }
 // ---- Versioning ----
-const FIXED_VERSION_TEXT = "v2.1.069";
+const FIXED_VERSION_TEXT = "v2.1.070";
 const VERSION_PREFIX = "2.1"; // major.minor
 const STORAGE_VERSION_PATCH = "menu.version.patch";
 function loadVersionPatch(): number {
@@ -470,8 +470,8 @@ const handleCloudLoad = async () => {
         <div className="relative w-full flex items-baseline justify-center min-h-[48px]">
           <h1 className="absolute left-1/2 -translate-x-1/2 font-bold tracking-wide text-2xl sm:text-3xl md:text-4xl whitespace-nowrap">新メニュー表</h1>
 
-{/* Cloud buttons (編集画面専用) */}
-<div className="mt-2 grid grid-cols-3 gap-2">
+{/* Cloud buttons moved to header (between 戻る and 保存) */}
+<div className="hidden mt-2 grid grid-cols-3 gap-2">
   <div className="flex justify-start">
     <button onClick={handleCloudSave} className="h-9 min-h-[36px] px-3 whitespace-nowrap rounded-md border border-green-300 bg-white hover:bg-green-50 shadow-sm text-base">
       保存(雲)
@@ -699,6 +699,12 @@ function MenuEditor({
             >
               ← 戻る
             </button>
+{/* 追加: クラウド操作（編集画面の戻ると保存の間） */}
+<div className="flex gap-2">
+  <button onClick={handleCloudSave} className="h-9 min-h-[36px] px-3 rounded-md border border-green-300 bg-white hover:bg-green-50 shadow-sm text-base">保存(雲)</button>
+  <button onClick={handleCloudLoad} className="h-9 min-h-[36px] px-3 rounded-md border border-green-300 bg-white hover:bg-green-50 shadow-sm text-base">読込(雲)</button>
+</div>
+
           </div>
           <div className="flex justify-center">
             <button style={{display:"none"}} disabled aria-hidden="true"
