@@ -14,7 +14,7 @@ async function decryptBlob(blob){const buf=new Uint8Array(await blob.arrayBuffer
 async function cloudSave(payload){const blob=await encryptJson(payload);const {error}=await supabase.storage.from("menus").upload(CLOUD_OBJECT_PATH,blob,{upsert:true,contentType:"application/octet-stream"});if(error)throw error;}
 async function cloudLoad(){const {data,error}=await supabase.storage.from("menus").download(CLOUD_OBJECT_PATH);if(error)throw error;return await decryptBlob(data);} 
 // ---- Versioning ----
-const FIXED_VERSION_TEXT = "v2.1.089";
+const FIXED_VERSION_TEXT = "v2.1.087";
 const VERSION_PREFIX = "2.1"; // major.minor
 const STORAGE_VERSION_PATCH = "menu.version.patch";
 function loadVersionPatch(): number {
@@ -414,33 +414,38 @@ export default function App() {
 
   return (
     <div id="capture" data-capture-root className="min-h-dvh w-full overflow-x-hidden bg-green-50 text-green-900 flex flex-col text-[clamp(16px,2.7vw,18px)]">
-      <header className="w-full max-w-3xl mx-auto px-4 pt-4">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <button
-            onClick={onCancel}
-            className="h-9 min-h-[36px] px-4 whitespace-nowrap leading-none rounded-md border border-green-300 bg-white/80 hover:bg-white shadow-sm text-base md:text-lg"
-          >← 戻る</button>
-
-          <button
-            onClick={handleLocalSaveEdit}
-            className="h-9 min-h-[36px] px-4 whitespace-nowrap leading-none rounded-md border border-green-300 bg-white/80 hover:bg-white shadow-sm text-base md:text-lg"
-          >保存📁</button>
-
-          <button
-            onClick={handleCloudSaveEdit}
-            className="h-9 min-h-[36px] px-4 whitespace-nowrap leading-none rounded-md border border-green-300 bg-white/80 hover:bg-white shadow-sm text-base md:text-lg"
-          >保存☁️</button>
+      <header className="w-full max-w-3xl mx-auto pt-6 px-4">
+        <div className="relative w-full flex items-baseline justify-center min-h-[48px]">
+          <h1 className="absolute left-1/2 -translate-x-1/2 font-bold tracking-wide text-2xl sm:text-3xl md:text-4xl whitespace-nowrap">新メニュー表</h1>
+          <span className="absolute right-0 text-sm opacity-70">{FIXED_VERSION_TEXT}</span>
         </div>
-
-        <div className="flex items-center">
-          <button
-            onClick={handleCloudLoadEdit}
-            className="h-9 min-h-[36px] px-4 whitespace-nowrap leading-none rounded-md border border-green-300 bg-white/80 hover:bg-white shadow-sm text-base md:text-lg"
-          >読込☁️</button>
+        <div className="w-full grid grid-cols-3 items-center mt-2">
+          <div className="flex justify-start">
+            <button
+              onClick={() => setEditing(true)}
+              className="h-9 min-h-[36px] px-4 whitespace-nowrap leading-none rounded-md border border-green-300 bg-white/80 hover:bg-white shadow-sm text-base md:text-lg"
+            >
+              編集
+            </button>
+          </div>
+          <div className="flex justify-center">
+            <button
+              onClick={() => setPdfOpen(true)}
+              className="h-9 min-h-[36px] px-5 whitespace-nowrap leading-none rounded-md border border-green-300 bg-white/80 hover:bg-white shadow-sm text-base md:text-lg"
+            >
+              PDF
+            </button>
+          </div>
+          <div className="flex justify-end">
+            <button
+              onClick={handleReset}
+              className="h-9 min-h-[36px] px-4 whitespace-nowrap leading-none rounded-md border border-green-300 bg-white/80 hover:bg-white shadow-sm text-base md:text-lg"
+            >
+              リセット
+            </button>
+          </div>
         </div>
-      </div>
-    </header>
+      </header>
 
       <main className="w-full max-w-3xl mx-auto px-4 mt-4 flex-1 pb-[calc(env(safe-area-inset-bottom,0px)+7rem)]" data-capture-root="true">
         <div className="space-y-3">
@@ -542,11 +547,6 @@ function MenuEditor({
   const handleCloudSaveEdit = async () => {
     try {
       const payload = { menuItems: draft, schemaVersion: 1 };
-  const handleLocalSaveEdit = () => {
-    saveMenuItems(editItems);
-    alert("ローカルに保存しました");
-  };
-
       await cloudSave(payload);
       onSave(draft); // ローカル保存も同時に
       alert("保存しました（クラウド／ローカル）");
@@ -560,7 +560,7 @@ function MenuEditor({
       const obj:any = await cloudLoad();
       if (Array.isArray(obj?.menuItems)) {
         setDraft(obj.menuItems);
-        saveMenuItems(obj.menuItems); // ローカル保存も実施
+        onSave(obj.menuItems); // 親状態も更新し通常画面に即反映（ローカル保存も実施）
       }
       alert("クラウドから読み込みました");
     } catch (e:any) {
