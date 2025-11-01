@@ -14,7 +14,7 @@ async function decryptBlob(blob){const buf=new Uint8Array(await blob.arrayBuffer
 async function cloudSave(payload){const blob=await encryptJson(payload);const {error}=await supabase.storage.from("menus").upload(CLOUD_OBJECT_PATH,blob,{upsert:true,contentType:"application/octet-stream"});if(error)throw error;}
 async function cloudLoad(){const {data,error}=await supabase.storage.from("menus").download(CLOUD_OBJECT_PATH);if(error)throw error;return await decryptBlob(data);} 
 // ---- Versioning ----
-const FIXED_VERSION_TEXT = "v2.1.108";
+const FIXED_VERSION_TEXT = "v2.1.109";
 const VERSION_PREFIX = "2.1"; // major.minor
 const STORAGE_VERSION_PATCH = "menu.version.patch";
 function loadVersionPatch(): number {
@@ -428,6 +428,7 @@ export default function App() {
         <div className="relative w-full flex items-baseline justify-center min-h-[48px]">
           <h1 className="absolute left-1/2 -translate-x-1/2 font-bold tracking-wide text-2xl sm:text-3xl md:text-4xl whitespace-nowrap">新メニュー表</h1>
           <span className="absolute right-0 text-sm opacity-70">{FIXED_VERSION_TEXT}</span>
+        </div>
         
         <div className="w-full grid grid-cols-3 items-center mt-2">
           <div className="flex justify-start">
