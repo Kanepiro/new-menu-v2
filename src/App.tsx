@@ -86,7 +86,8 @@ function Dropdown<T extends number>({
     return () => document.removeEventListener("keydown", onKey);
   }, [open]);
 
-  const current = options.find(o => o.value === value);
+  const safeOptions = Array.isArray(options) ? options : [];
+  const current = safeOptions.find(o => o.value === value);
 
   return (
     <>
@@ -126,13 +127,13 @@ function Dropdown<T extends number>({
               </button>
             </div>
             <div className="py-2">
-              {options.map((opt) => (
+              {safeOptions.map((opt) => (
                 <button
                   key={String(opt.value)}
                   role="option"
                   aria-selected={opt.value === value}
                   onClick={() => {
-                    onChange(opt.value);
+                    onChange && onChange(opt.value);
                     setOpen(false);
                     // Return focus to opener for accessibility
                     setTimeout(() => openerRef.current?.focus(), 0);
