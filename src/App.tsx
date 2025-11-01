@@ -14,7 +14,7 @@ async function decryptBlob(blob){const buf=new Uint8Array(await blob.arrayBuffer
 async function cloudSave(payload){const blob=await encryptJson(payload);const {error}=await supabase.storage.from("menus").upload(CLOUD_OBJECT_PATH,blob,{upsert:true,contentType:"application/octet-stream"});if(error)throw error;}
 async function cloudLoad(){const {data,error}=await supabase.storage.from("menus").download(CLOUD_OBJECT_PATH);if(error)throw error;return await decryptBlob(data);} 
 // ---- Versioning ----
-const FIXED_VERSION_TEXT = "v2.1.091";
+const FIXED_VERSION_TEXT = "v2.1.093";
 const VERSION_PREFIX = "2.1"; // major.minor
 const STORAGE_VERSION_PATCH = "menu.version.patch";
 function loadVersionPatch(): number {
@@ -67,78 +67,94 @@ function Dropdown<T extends number>({
   value,
   options,
   onChange,
-  labelFor }: {
+  labelFor
+}: {
   value: T;
   options: { value: T; label: string }[];
   onChange: (v: T) => void;
   labelFor?: string;
 }) {
   const [open, setOpen] = React.useState(false);
-  const ref = React.useRef<HTMLDivElement | null>(null);
+  const openerRef = React.useRef<HTMLButtonElement | null>(null);
 
+  // Close on Esc
   React.useEffect(() => {
-    const onDoc = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
     };
-    document.addEventListener("mousedown", onDoc);
-    return () => document.removeEventListener("mousedown", onDoc);
-  }, []);
+    if (open) document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [open]);
 
   const current = options.find(o => o.value === value);
 
   return (
-    <div ref={ref} className="relative w-full flex-1 max-w-[calc(100vw-2rem)] md:max-w-none">
+    <>
       <button
-        aria-haspopup="listbox"
+        ref={openerRef}
+        type="button"
+        aria-haspopup="dialog"
         aria-expanded={open}
-        aria-labelledby={labelFor}
-        onClick={() => setOpen(v => !v)}
-        className="w-full rounded-xl border border-green-300 bg-white/90 text-green-900 px-4 py-3 md:py-2 text-lg md:text-xl text-left shadow-sm"
+        aria-controls={labelFor ? `${labelFor}-menu` : undefined}
+        onClick={() => setOpen(true)}
+        className="w-full md:w-72 text-left px-4 py-2 rounded-xl border border-green-300 bg-white/70 hover:bg-white/90 shadow-sm"
       >
-        <span className="inline-block truncate max-w-[92%] align-middle">{current?.label ?? ""}</span>
+        <span className="inline-block align-middle">{current ? current.label : "選択..."}</span>
         <span className="float-right opacity-70">▾</span>
       </button>
+
       {open && (
-        <div className="absolute left-0 right-0 z-50 mt-1 w-full max-w-[calc(100vw-2rem)] md:max-w-none max-h-[90vh] overflow-y-auto rounded-xl border border-green-300 bg-white shadow-lg">
-          {options.map((opt) => (
-            <button
-              key={String(opt.value)}
-              role="option"
-              aria-selected={opt.value === value}
-              onClick={() => { onChange(opt.value); setOpen(false); }}
-              className={"w-full text-left px-4 py-3 md:py-2 text-lg border-b last:border-b-0 border-white/5 " + (opt.value===value ? "bg-emerald-100" : "hover:bg-white/5")}
-            >
-              <span className="inline-block align-middle whitespace-normal break-words">{opt.label}</span>
-            </button>
-          ))}
+        <div
+          role="dialog"
+          aria-modal="true"
+          id={labelFor ? `${labelFor}-menu` : undefined}
+          className="fixed inset-0 z-[1000] bg-black/30 flex items-center justify-center p-3"
+          onClick={(e) => {
+            // click backdrop to close (ignore clicks inside panel)
+            if (e.target === e.currentTarget) setOpen(false);
+          }}
+        >
+          <div className="w-full max-w-md max-h-[80vh] overflow-y-auto rounded-2xl bg-white shadow-xl border border-green-300">
+            <div className="sticky top-0 bg-white/95 backdrop-blur-sm border-b border-green-200 px-4 py-3 flex items-center justify-between">
+              <div className="font-semibold">メニューを選択</div>
+              <button
+                type="button"
+                className="px-3 py-1 rounded-lg border border-gray-300 hover:bg-gray-50"
+                onClick={() => setOpen(false)}
+              >
+                閉じる
+              </button>
+            </div>
+            <div className="py-2">
+              {options.map((opt) => (
+                <button
+                  key={String(opt.value)}
+                  role="option"
+                  aria-selected={opt.value === value}
+                  onClick={() => {
+                    onChange(opt.value);
+                    setOpen(false);
+                    // Return focus to opener for accessibility
+                    setTimeout(() => openerRef.current?.focus(), 0);
+                  }}
+                  className={
+                    "w-full text-left px-4 py-3 md:py-3 text-[15px] md:text-sm border-b last:border-b-0 " +
+                    (opt.value === value
+                      ? "bg-green-100"
+                      : "hover:bg-green-50")
+                  }
+                >
+                  <span className="inline-block align-middle whitespace-normal break-words">
+                    {opt.label}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
       )}
-    </div>
+    </>
   );
-}
-type Row = { group: Group; index: number };
-
-const STORAGE_ROWS = "new-menu-v2-rows";
-const STORAGE_MENU = "new-menu-v2-menu-items";
-
-const defaultRowsFromItems = (items: MenuItem[]): Row[] => {
-  const gs = groupsOf(items);
-  return gs.map((g) => ({ group: g, index: 0 }));
-};
-
-const loadMenuItems = (): MenuItem[] => {
-  try {
-    const raw = localStorage.getItem(STORAGE_MENU);
-    if (raw) {
-      const parsed = JSON.parse(raw) as MenuItem[];
-      if (Array.isArray(parsed) && parsed.length) return parsed;
-    }
-  } catch {}
-  return [...MENU_ITEMS_DEFAULT];
-};
-
-const saveMenuItems = (items: MenuItem[]) => {
-  try { localStorage.setItem(STORAGE_MENU, JSON.stringify(items)); } catch {}
 };
 
 const loadRows = (items: MenuItem[]): Row[] => {
