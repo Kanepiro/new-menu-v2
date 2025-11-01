@@ -14,7 +14,7 @@ async function decryptBlob(blob){const buf=new Uint8Array(await blob.arrayBuffer
 async function cloudSave(payload){const blob=await encryptJson(payload);const {error}=await supabase.storage.from("menus").upload(CLOUD_OBJECT_PATH,blob,{upsert:true,contentType:"application/octet-stream"});if(error)throw error;}
 async function cloudLoad(){const {data,error}=await supabase.storage.from("menus").download(CLOUD_OBJECT_PATH);if(error)throw error;return await decryptBlob(data);} 
 // ---- Versioning ----
-const FIXED_VERSION_TEXT = "v2.1.091";
+const FIXED_VERSION_TEXT = "v2.1.108";
 const VERSION_PREFIX = "2.1"; // major.minor
 const STORAGE_VERSION_PATCH = "menu.version.patch";
 function loadVersionPatch(): number {
@@ -99,18 +99,27 @@ function Dropdown<T extends number>({
         <span className="float-right opacity-70">▾</span>
       </button>
       {open && (
-        <div className="absolute left-0 right-0 z-50 mt-1 w-full max-w-[calc(100vw-2rem)] md:max-w-none max-h-[90vh] overflow-y-auto rounded-xl border border-green-300 bg-white shadow-lg">
-          {options.map((opt) => (
-            <button
-              key={String(opt.value)}
-              role="option"
-              aria-selected={opt.value === value}
-              onClick={() => { onChange(opt.value); setOpen(false); }}
-              className={"w-full text-left px-4 py-3 md:py-2 text-lg border-b last:border-b-0 border-white/5 " + (opt.value===value ? "bg-emerald-100" : "hover:bg-white/5")}
-            >
-              <span className="inline-block align-middle whitespace-normal break-words">{opt.label}</span>
-            </button>
-          ))}
+        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center"
+             onClick={() => setOpen(false)} aria-modal="true" role="dialog">
+          <div className="w-[min(92vw,520px)] max-h-[80vh] overflow-auto rounded-2xl bg-white shadow-xl p-2"
+               onClick={(e)=>e.stopPropagation()}>
+            <div className="sticky top-0 bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/70 border-b px-2 py-2 text-sm text-gray-600">
+              <span>{current?.label ?? labelFor ?? "選択"}</span>
+            </div>
+            <div className="py-1">
+              {options.map((opt) => (
+                <button
+                  key={String(opt.value)}
+                  role="option"
+                  aria-selected={opt.value === value}
+                  onClick={() => { onChange(opt.value); setOpen(false); }}
+                  className={"w-full text-left px-4 py-4 md:py-5 rounded-lg " + (opt.value===value ? "bg-emerald-100" : "hover:bg-gray-50")}
+                >
+                  <span className="inline-block align-middle whitespace-normal break-words">{opt.label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
       )}
     </div>
@@ -167,6 +176,7 @@ const saveRows = (rows: Row[]) => {
 export default function App() {
 
   // ===== PDF Modal State (inside App) =====
+  const [menuOpen, setMenuOpen] = useState(false);
   const [pdfOpen, setPdfOpen] = useState(false);
   const [pdfPwd, setPdfPwd] = useState("");
   const [pdfBusy, setPdfBusy] = useState(false);
@@ -418,12 +428,12 @@ export default function App() {
         <div className="relative w-full flex items-baseline justify-center min-h-[48px]">
           <h1 className="absolute left-1/2 -translate-x-1/2 font-bold tracking-wide text-2xl sm:text-3xl md:text-4xl whitespace-nowrap">新メニュー表</h1>
           <span className="absolute right-0 text-sm opacity-70">{FIXED_VERSION_TEXT}</span>
-        </div>
+        
         <div className="w-full grid grid-cols-3 items-center mt-2">
           <div className="flex justify-start">
             <button
               onClick={() => setEditing(true)}
-              className="h-9 min-h-[36px] px-4 whitespace-nowrap leading-none rounded-md border border-green-300 bg-white/80 hover:bg-white shadow-sm text-base md:text-lg"
+              className="h-9 min-h-[36px] px-4 whitespace-nowrap rounded-xl border border-green-300 bg-white/80 hover:bg-white shadow-sm text-base md:text-lg"
             >
               編集
             </button>
@@ -431,7 +441,7 @@ export default function App() {
           <div className="flex justify-center">
             <button
               onClick={() => setPdfOpen(true)}
-              className="h-9 min-h-[36px] px-5 whitespace-nowrap leading-none rounded-md border border-green-300 bg-white/80 hover:bg-white shadow-sm text-base md:text-lg"
+              className="h-9 min-h-[36px] px-5 whitespace-nowrap rounded-xl border border-green-300 bg-white/80 hover:bg-white shadow-sm text-base md:text-lg"
             >
               PDF
             </button>
@@ -439,10 +449,13 @@ export default function App() {
           <div className="flex justify-end">
             <button
               onClick={handleReset}
-              className="h-9 min-h-[36px] px-4 whitespace-nowrap leading-none rounded-md border border-green-300 bg-white/80 hover:bg-white shadow-sm text-base md:text-lg"
+              className="h-9 min-h-[36px] px-4 whitespace-nowrap rounded-xl border border-green-300 bg-white/80 hover:bg-white shadow-sm text-base md:text-lg"
             >
               リセット
             </button>
+          </div>
+        </div>
+
           </div>
         </div>
       </header>
@@ -474,7 +487,8 @@ export default function App() {
 
         <div data-capture-hide className="h-[calc(env(safe-area-inset-bottom,0px)+6.5rem)]"></div>
 
-        {/* PDF Password Modal */}
+        
+                {/* PDF Password Modal */}
         {pdfOpen && (
           <div className={"fixed inset-0 z-[60] bg-black/60 backdrop-blur-sm flex justify-center " + (keyboardOpen ? "items-start" : "items-center")} style={keyboardOpen ? { paddingTop: kbPad } : undefined}>
             <div className="w-[min(90vw,420px)] rounded-2xl bg-white shadow-xl p-5">
