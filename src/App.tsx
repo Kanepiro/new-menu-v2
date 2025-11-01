@@ -14,7 +14,7 @@ async function decryptBlob(blob){const buf=new Uint8Array(await blob.arrayBuffer
 async function cloudSave(payload){const blob=await encryptJson(payload);const {error}=await supabase.storage.from("menus").upload(CLOUD_OBJECT_PATH,blob,{upsert:true,contentType:"application/octet-stream"});if(error)throw error;}
 async function cloudLoad(){const {data,error}=await supabase.storage.from("menus").download(CLOUD_OBJECT_PATH);if(error)throw error;return await decryptBlob(data);} 
 // ---- Versioning ----
-const FIXED_VERSION_TEXT = "v2.1.110";
+const FIXED_VERSION_TEXT = "v2.1.111";
 const VERSION_PREFIX = "2.1"; // major.minor
 const STORAGE_VERSION_PATCH = "menu.version.patch";
 function loadVersionPatch(): number {
@@ -457,8 +457,6 @@ export default function App() {
           </div>
         </div>
 
-          </div>
-        </div>
       </header>
 
       <main className="w-full max-w-3xl mx-auto px-4 mt-4 flex-1 pb-[calc(env(safe-area-inset-bottom,0px)+7rem)]" data-capture-root="true">
