@@ -2,19 +2,36 @@ import React, { useEffect, useMemo, useState } from "react";
 import type { Group, MenuItem } from "./menuOptions";
 import { MENU_ITEMS_DEFAULT, byGroup, groupsOf } from "./menuOptions";
 import { createClient } from "@supabase/supabase-js";
+// ---- Error Boundary to avoid blank screen ----
+class ErrorBoundary extends React.Component<{children: React.ReactNode}, {hasError: boolean; msg?: string}> {
+  constructor(props:any){super(props); this.state={hasError:false, msg:undefined};}
+  static getDerivedStateFromError(err:any){return {hasError:true, msg:String(err&&err.message||err)};}
+  componentDidCatch(err:any, info:any){console.error(err, info);}
+  render(){
+    if(this.state.hasError){
+      return (<ErrorBoundary><div className="p-4 text-sm">
+          <div className="mb-2 font-semibold">エラーが発生しました</div>
+          <pre className="whitespace-pre-wrap break-words">{this.state.msg}</pre>
+        </div>
+      );
+    }
+    return this.props.children as any;
+  }
+}
+
 
 
 // ---- Cloud Save (Supabase) ----
 const SHARED_KEY_B64 = "pAHI97yfr67P9Gui4oPyApIyjnk/rDCqqRKo5VWiMKY="; // 32byte Base64
 const CLOUD_OBJECT_PATH = "siCNDuBOVj76ZTKScao8.menu.enc";
-const supabase = createClient(import.meta.env.VITE_SUPABASE_URL, import.meta.env.VITE_SUPABASE_ANON_KEY);
+const supabase = (import.meta as any)?.env?.VITE_SUPABASE_URL && (import.meta as any)?.env?.VITE_SUPABASE_ANON_KEY ? createClient((import.meta as any).env.VITE_SUPABASE_URL, (import.meta as any).env.VITE_SUPABASE_ANON_KEY) : null as any;
 async function getSharedCryptoKey(){const raw=Uint8Array.from(atob(SHARED_KEY_B64),c=>c.charCodeAt(0));return crypto.subtle.importKey("raw",raw,"AES-GCM",false,["encrypt","decrypt"]);}
 async function encryptJson(obj){const key=await getSharedCryptoKey();const iv=crypto.getRandomValues(new Uint8Array(12));const data=new TextEncoder().encode(JSON.stringify(obj));const enc=await crypto.subtle.encrypt({name:"AES-GCM",iv},key,data);const header=new Uint8Array(16);header.set([0x4E,0x4D,0x32,1]);header.set(iv,4);return new Blob([header,new Uint8Array(enc)],{type:"application/octet-stream"});}
 async function decryptBlob(blob){const buf=new Uint8Array(await blob.arrayBuffer());if(!(buf[0]===0x4E&&buf[1]===0x4D&&buf[2]===0x32&&buf[3]===1))throw new Error("invalid header");const iv=buf.slice(4,16);const body=buf.slice(16);const key=await getSharedCryptoKey();const dec=await crypto.subtle.decrypt({name:"AES-GCM",iv},key,body);return JSON.parse(new TextDecoder().decode(new Uint8Array(dec)));}
 async function cloudSave(payload){const blob=await encryptJson(payload);const {error}=await supabase.storage.from("menus").upload(CLOUD_OBJECT_PATH,blob,{upsert:true,contentType:"application/octet-stream"});if(error)throw error;}
-async function cloudLoad(){const {data,error}=await supabase.storage.from("menus").download(CLOUD_OBJECT_PATH);if(error)throw error;return await decryptBlob(data);} 
+async function cloudLoad(){if(!supabase) throw new Error('Supabase未設定'); const {data,error}=await supabase.storage.from("menus").download(CLOUD_OBJECT_PATH);if(error)throw error;return await decryptBlob(data);} 
 // ---- Versioning ----
-const FIXED_VERSION_TEXT = "v2.1.093";
+const FIXED_VERSION_TEXT = "v2.1.095";
 const VERSION_PREFIX = "2.1"; // major.minor
 const STORAGE_VERSION_PATCH = "menu.version.patch";
 function loadVersionPatch(): number {
