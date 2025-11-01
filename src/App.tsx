@@ -36,6 +36,16 @@ class ErrorBoundary extends React.Component<
 
 
 
+
+function DebugBanner() {
+  return (
+    <div className="fixed top-0 left-0 right-0 z-[2000] text-xs md:text-sm px-2 py-1 bg-green-50/90 border-b border-green-200 text-gray-700">
+      <span>App mounted ✅ </span>
+      <span className="ml-2 opacity-70">Version: {FIXED_VERSION_TEXT}</span>
+    </div>
+  );
+}
+
 // ---- Cloud Save (Supabase) ----
 const SHARED_KEY_B64 = "pAHI97yfr67P9Gui4oPyApIyjnk/rDCqqRKo5VWiMKY="; // 32byte Base64
 const CLOUD_OBJECT_PATH = "siCNDuBOVj76ZTKScao8.menu.enc";
@@ -46,7 +56,7 @@ async function decryptBlob(blob){const buf=new Uint8Array(await blob.arrayBuffer
 async function cloudSave(payload){if(!supabase) throw new Error('Supabase未設定'); const blob=await encryptJson(payload);const {error}=await supabase.storage.from("menus").upload(CLOUD_OBJECT_PATH,blob,{upsert:true,contentType:"application/octet-stream"});if(error)throw error;}
 async function cloudLoad(){if(!supabase) throw new Error('Supabase未設定'); const {data,error}=await supabase.storage.from("menus").download(CLOUD_OBJECT_PATH);if(error)throw error;return await decryptBlob(data);} 
 // ---- Versioning ----
-const FIXED_VERSION_TEXT = "v2.1.098";
+const FIXED_VERSION_TEXT = "v2.1.099";
 const VERSION_PREFIX = "2.1"; // major.minor
 const STORAGE_VERSION_PATCH = "menu.version.patch";
 function loadVersionPatch(): number {
