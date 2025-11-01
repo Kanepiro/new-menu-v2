@@ -2,7 +2,8 @@ import React, { useEffect, useMemo, useState } from "react";
 import type { Group, MenuItem } from "./menuOptions";
 import { MENU_ITEMS_DEFAULT, byGroup, groupsOf } from "./menuOptions";
 import { createClient } from "@supabase/supabase-js";
-// ---- Error Boundary to avoid blank screen ----
+
+/* ---- Error Boundary to avoid blank screen ---- */
 class ErrorBoundary extends React.Component<
   { children: React.ReactNode },
   { hasError: boolean; msg?: string }
@@ -19,24 +20,6 @@ class ErrorBoundary extends React.Component<
   }
   render() {
     if (this.state.hasError) {
-      return (
-        <div className="p-4 text-sm">
-          <div className="mb-2 font-semibold">エラーが発生しました</div>
-          <pre className="whitespace-pre-wrap break-words">{this.state.msg}</pre>
-        </div>
-      );
-    }
-    return this.props.children as any;
-  }
-}
-
-// ---- Error Boundary to avoid blank screen ----
-class ErrorBoundary extends React.Component<{children: React.ReactNode}, {hasError: boolean; msg?: string}> {
-  constructor(props:any){super(props); this.state={hasError:false, msg:undefined};}
-  static getDerivedStateFromError(err:any){return {hasError:true, msg:String(err&&err.message||err)};}
-  componentDidCatch(err:any, info:any){console.error(err, info);}
-  render(){
-    if(this.state.hasError){
       return (<ErrorBoundary><div className="p-4 text-sm">
           <div className="mb-2 font-semibold">エラーが発生しました</div>
           <pre className="whitespace-pre-wrap break-words">{this.state.msg}</pre>
@@ -46,6 +29,9 @@ class ErrorBoundary extends React.Component<{children: React.ReactNode}, {hasErr
     return this.props.children as any;
   }
 }
+
+
+
 
 
 
@@ -59,7 +45,7 @@ async function decryptBlob(blob){const buf=new Uint8Array(await blob.arrayBuffer
 async function cloudSave(payload){if(!supabase) throw new Error('Supabase未設定'); const blob=await encryptJson(payload);const {error}=await supabase.storage.from("menus").upload(CLOUD_OBJECT_PATH,blob,{upsert:true,contentType:"application/octet-stream"});if(error)throw error;}
 async function cloudLoad(){if(!supabase) throw new Error('Supabase未設定'); const {data,error}=await supabase.storage.from("menus").download(CLOUD_OBJECT_PATH);if(error)throw error;return await decryptBlob(data);} 
 // ---- Versioning ----
-const FIXED_VERSION_TEXT = "v2.1.096";
+const FIXED_VERSION_TEXT = "v2.1.097";
 const VERSION_PREFIX = "2.1"; // major.minor
 const STORAGE_VERSION_PATCH = "menu.version.patch";
 function loadVersionPatch(): number {
