@@ -15,7 +15,7 @@ class ErrorBoundary extends React.Component<{children: React.ReactNode}, {hasErr
   ); } return this.props.children as any; }
 }
 
-const FIXED_VERSION_TEXT = "v2.1.105";
+const FIXED_VERSION_TEXT = "v2.1.106";
 
 /* Modal Dropdown (guarded) */
 function Dropdown<T extends number>({
@@ -70,13 +70,25 @@ export default function App(){
     new Array(3).fill(0).map(()=>({group: groups[0], index: 0}))
   );
 
+  // --- Header buttons (placeholders) ---
+  const onEdit = () => { console.log("編集 clicked"); };
+  const onPDF = () => { console.log("PDF clicked"); };
+  const onReset = () => { console.log("リセット clicked"); };
+
   return (
     <ErrorBoundary>
       <div className="min-h-screen bg-[#e9f6ee] text-gray-800">
         <header className="sticky top-0 z-[500] bg-white/80 backdrop-blur border-b border-green-200">
-          <div className="mx-auto max-w-screen-sm px-3 py-2 flex items-center justify-between">
-            <div className="font-semibold">新メニュー表</div>
-            <div className="text-xs opacity-70">{FIXED_VERSION_TEXT}</div>
+          <div className="mx-auto max-w-screen-sm px-3 py-2">
+            <div className="flex items-center justify-between">
+              <div className="font-semibold">新メニュー表</div>
+              <div className="text-xs opacity-70">{FIXED_VERSION_TEXT}</div>
+            </div>
+            <div className="mt-2 grid grid-cols-3 gap-2">
+              <button id="btn-edit" onClick={onEdit} className="px-3 py-2 rounded-lg border border-green-300 bg-white/70 hover:bg-white shadow-sm">編集</button>
+              <button id="btn-pdf" onClick={onPDF} className="px-3 py-2 rounded-lg border border-green-300 bg-white/70 hover:bg-white shadow-sm">PDF</button>
+              <button id="btn-reset" onClick={onReset} className="px-3 py-2 rounded-lg border border-green-300 bg-white/70 hover:bg-white shadow-sm">リセット</button>
+            </div>
           </div>
         </header>
 
@@ -90,7 +102,7 @@ export default function App(){
                   value={r.index as number}
                   options={opts}
                   onChange={(index:number)=>{
-                    setRows(prev=>{const next=[...prev]; next[i]={...next[i], index:Number(index)}; return next;});
+                    setRows(prev=>{const next=[...prev]; next[i]={...prev[i], index:Number(index)}; return next;});
                   }}
                 />
               </div>
