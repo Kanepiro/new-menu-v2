@@ -14,7 +14,7 @@ async function decryptBlob(blob){const buf=new Uint8Array(await blob.arrayBuffer
 async function cloudSave(payload){const blob=await encryptJson(payload);const {error}=await supabase.storage.from("menus").upload(CLOUD_OBJECT_PATH,blob,{upsert:true,contentType:"application/octet-stream"});if(error)throw error;}
 async function cloudLoad(){const {data,error}=await supabase.storage.from("menus").download(CLOUD_OBJECT_PATH);if(error)throw error;return await decryptBlob(data);} 
 // ---- Versioning ----
-const FIXED_VERSION_TEXT = "v2.1.111";
+const FIXED_VERSION_TEXT = "v2.1.112";
 const VERSION_PREFIX = "2.1"; // major.minor
 const STORAGE_VERSION_PATCH = "menu.version.patch";
 function loadVersionPatch(): number {
@@ -103,9 +103,6 @@ function Dropdown<T extends number>({
              onClick={() => setOpen(false)} aria-modal="true" role="dialog">
           <div className="w-[min(92vw,520px)] max-h-[80vh] overflow-auto rounded-2xl bg-white shadow-xl p-2"
                onClick={(e)=>e.stopPropagation()}>
-            <div className="sticky top-0 bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/70 border-b px-2 py-2 text-sm text-gray-600">
-              <span>{current?.label ?? labelFor ?? "選択"}</span>
-            </div>
             <div className="py-1">
               {options.map((opt) => (
                 <button
