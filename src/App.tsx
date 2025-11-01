@@ -31,9 +31,9 @@ class ErrorBoundary extends React.Component<
   }
 }
 
-const FIXED_VERSION_TEXT = "v2.1.102";
+const FIXED_VERSION_TEXT = "v2.1.103";
 
-// ---- Cloud (guarded) ----
+// ---- Cloud (guarded,未使用) ----
 const SHARED_KEY_B64 = "pAHI97yfr67P9Gui4oPyApIyjnk/rDCqqRKo5VWiMKY=";
 const CLOUD_OBJECT_PATH = "siCNDuBOVj76ZTKScao8.menu.enc";
 const supabase =
@@ -45,16 +45,10 @@ const supabase =
       )
     : (null as any);
 
-async function getSharedCryptoKey(){const raw=Uint8Array.from(atob(SHARED_KEY_B64),c=>c.charCodeAt(0));return crypto.subtle.importKey("raw",raw,"AES-GCM",false,["encrypt","decrypt"]);}
-async function encryptJson(obj:any){const key=await getSharedCryptoKey();const iv=crypto.getRandomValues(new Uint8Array(12));const data=new TextEncoder().encode(JSON.stringify(obj));const enc=await crypto.subtle.encrypt({name:"AES-GCM",iv},key,data);const header=new Uint8Array(16);header.set([0x4E,0x4D,0x32,1]);header.set(iv,4);return new Blob([header,new Uint8Array(enc)],{type:"application/octet-stream"});}
-async function decryptBlob(blob:Blob){const buf=new Uint8Array(await blob.arrayBuffer());if(!(buf[0]===0x4E&&buf[1]===0x4D&&buf[2]===0x32&&buf[3]===1))throw new Error("invalid header");const iv=buf.slice(4,16);const body=buf.slice(16);const key=await getSharedCryptoKey();const dec=await crypto.subtle.decrypt({name:"AES-GCM",iv},key,body);return JSON.parse(new TextDecoder().decode(new Uint8Array(dec)));}
-async function cloudSave(payload:any){if(!supabase) throw new Error("Supabase未設定"); const blob=await encryptJson(payload);const {error}=await supabase.storage.from("menus").upload(CLOUD_OBJECT_PATH,blob,{upsert:true,contentType:"application/octet-stream"});if(error)throw error;}
-async function cloudLoad(){if(!supabase) throw new Error("Supabase未設定"); const {data,error}=await supabase.storage.from("menus").download(CLOUD_OBJECT_PATH);if(error)throw error;return await decryptBlob(data);}
-
-// ---- Minimal Modal Dropdown (guarded) ----
+// ---- Modal Dropdown (guarded) ----
 function Dropdown<T extends number>({
-  value, options, onChange, labelFor
-}: { value: T; options: { value: T; label: string }[]; onChange: (v:T)=>void; labelFor?: string; }){
+  value, options, onChange
+}: { value: T; options: { value: T; label: string }[]; onChange: (v:T)=>void; }){
   const [open,setOpen]=React.useState(false);
   const openerRef = React.useRef<HTMLButtonElement|null>(null);
   React.useEffect(()=>{const h=(e:KeyboardEvent)=>{if(e.key==="Escape")setOpen(false)}; if(open)document.addEventListener("keydown",h); return ()=>document.removeEventListener("keydown",h);},[open]);
@@ -63,7 +57,7 @@ function Dropdown<T extends number>({
   return (<>
     <button ref={openerRef} type="button" aria-haspopup="dialog" aria-expanded={open}
       onClick={()=>setOpen(true)}
-      className="w-full md:w-72 text-left px-4 py-2 rounded-xl border border-green-300 bg-white/70 hover:bg-white/90 shadow-sm">
+      className="w-full text-left px-4 py-3 rounded-xl border border-green-300 bg-white/70 hover:bg-white/90 shadow-sm">
       <span className="inline-block align-middle">{current?current.label:"選択..."}</span>
       <span className="float-right opacity-70">▾</span>
     </button>
@@ -91,15 +85,20 @@ function Dropdown<T extends number>({
 
 // ---- App ----
 export default function App(){
-  // Safe fallbacks
+  // 安全フォールバック
   const baseItems: MenuItem[] = Array.isArray(MENU_ITEMS_DEFAULT) && MENU_ITEMS_DEFAULT.length>0
     ? MENU_ITEMS_DEFAULT
-    : [{label:"テストA", price:500, group:0 as Group},{label:"テストB", price:700, group:0 as Group}];
-  const groups = groupsOf ? groupsOf(baseItems) : ([0] as Group[]);
+    : [{label:"☕ お茶", price:500, group:0 as Group},{label:"🍴 食事 1h(1.5)", price:700, group:0 as Group}];
+  const groups = typeof groupsOf==="function" ? groupsOf(baseItems) : ([0] as Group[]);
+  const optionsFor = (g: Group) => {
+    const list = typeof byGroup==="function" ? byGroup(baseItems, g) : baseItems;
+    return list.map((it, idx)=>({value: idx as number, label: it.label})) as {value:number; label:string}[];
+  };
 
-  const [rows, setRows] = React.useState([{group: groups[0], index: 0}] as {group: Group; index: number}[]);
-
-  const optionsFor = (g: Group) => (byGroup ? byGroup(baseItems, g) : baseItems).map((it, idx)=>({value: idx as number, label: it.label})) as {value:number; label:string}[];
+  // 3行分の行を見えるように初期化（編集機能は最小化）
+  const [rows, setRows] = React.useState<Array<{group: Group; index: number}>>(
+    new Array(3).fill(0).map(()=>({group: groups[0], index: 0}))
+  );
 
   return (
     <ErrorBoundary>
@@ -113,13 +112,13 @@ export default function App(){
 
         <main className="mx-auto max-w-screen-sm px-3 py-4 space-y-3">
           {rows.map((r,i)=>{
-            const list = optionsFor(r.group);
+            const opts = optionsFor(r.group);
             return (
               <div key={i} className="rounded-xl border border-green-200 bg-white/80 shadow-sm p-3">
                 <div className="text-xs mb-1 opacity-70">グループ {String(r.group)}</div>
                 <Dropdown
                   value={r.index as number}
-                  options={list}
+                  options={opts}
                   onChange={(index:number)=>{
                     setRows(prev=>{const next=[...prev]; next[i]={...next[i], index:Number(index)}; return next;});
                   }}
