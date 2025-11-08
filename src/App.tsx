@@ -11,10 +11,10 @@ const supabase = createClient(import.meta.env.VITE_SUPABASE_URL, import.meta.env
 async function getSharedCryptoKey(){const raw=Uint8Array.from(atob(SHARED_KEY_B64),c=>c.charCodeAt(0));return crypto.subtle.importKey("raw",raw,"AES-GCM",false,["encrypt","decrypt"]);}
 async function encryptJson(obj){const key=await getSharedCryptoKey();const iv=crypto.getRandomValues(new Uint8Array(12));const data=new TextEncoder().encode(JSON.stringify(obj));const enc=await crypto.subtle.encrypt({name:"AES-GCM",iv},key,data);const header=new Uint8Array(16);header.set([0x4E,0x4D,0x32,1]);header.set(iv,4);return new Blob([header,new Uint8Array(enc)],{type:"application/octet-stream"});}
 async function decryptBlob(blob){const buf=new Uint8Array(await blob.arrayBuffer());if(!(buf[0]===0x4E&&buf[1]===0x4D&&buf[2]===0x32&&buf[3]===1))throw new Error("invalid header");const iv=buf.slice(4,16);const body=buf.slice(16);const key=await getSharedCryptoKey();const dec=await crypto.subtle.decrypt({name:"AES-GCM",iv},key,body);return JSON.parse(new TextDecoder().decode(new Uint8Array(dec)));}
-async function cloudSave(payload){const blob=await encryptJson(payload);const {error}=await supabase.storage.from("menus").upload(CLOUD_OBJECT_PATH,blob,{upsert:true,contentType:"application/octet-stream"});if(error)throw error;}
-async function cloudLoad(){const {data,error}=await supabase.storage.from("menus").download(CLOUD_OBJECT_PATH);if(error)throw error;return await decryptBlob(data);} 
+async function window.dispatchEvent(new CustomEvent("cloud-indicator",{detail:"up"})); cloudSave(payload){const blob=await encryptJson(payload);const {error}=await supabase.storage.from("menus").upload(CLOUD_OBJECT_PATH,blob,{upsert:true,contentType:"application/octet-stream"});if(error)throw error;}
+async function window.dispatchEvent(new CustomEvent("cloud-indicator",{detail:"down"})); cloudLoad(){const {data,error}=await supabase.storage.from("menus").download(CLOUD_OBJECT_PATH);if(error)throw error;return await decryptBlob(data);} 
 // ---- Versioning ----
-const FIXED_VERSION_TEXT = "v2.1.116";
+const FIXED_VERSION_TEXT = "v2.1.117";
 const VERSION_PREFIX = "2.1"; // major.minor
 const STORAGE_VERSION_PATCH = "menu.version.patch";
 function loadVersionPatch(): number {
@@ -345,6 +345,18 @@ export default function App() {
   const [menuItems, setMenuItems] = useState<MenuItem[]>(loadMenuItems);
   const [rows, setRows] = useState<Row[]>(() => loadRows(loadMenuItems()));
   const [editing, setEditing] = useState(false);
+  // ---- Cloud activity overlay (App) ----
+  const [cloudFX, setCloudFX] = useState<"up"|"down"|null>(null);
+  useEffect(() => {
+    const onFX = (e: any) => {
+      const dir = (e && e.detail) === "up" ? "up" : "down";
+      setCloudFX(dir);
+      setTimeout(() => setCloudFX(null), 2000);
+    };
+    window.addEventListener("cloud-indicator", onFX as any);
+    return () => window.removeEventListener("cloud-indicator", onFX as any);
+  }, []);
+
 
   useEffect(() => { saveRows(rows); }, [rows]);
   useEffect(() => { saveMenuItems(menuItems); }, [menuItems]);
@@ -353,7 +365,7 @@ export default function App() {
   useEffect(() => {
     (async () => {
       try {
-        const obj:any = await cloudLoad();
+        const obj:any = window.dispatchEvent(new CustomEvent("cloud-indicator",{detail:"down"})); await window.dispatchEvent(new CustomEvent("cloud-indicator",{detail:"down"})); cloudLoad();
         if (obj) {
           if (Array.isArray(obj.menuItems)) { setMenuItems(obj.menuItems); try { saveMenuItems(obj.menuItems); } catch {} }
           if (Array.isArray(obj.rows)) { setRows(obj.rows); try { saveRows(obj.rows); } catch {} }
@@ -373,7 +385,7 @@ export default function App() {
       } catch {}
       try {
         const payload = { menuItems, rows, schemaVersion: 1 } as any;
-        await cloudSave(payload);
+        window.dispatchEvent(new CustomEvent("cloud-indicator",{detail:"up"})); await window.dispatchEvent(new CustomEvent("cloud-indicator",{detail:"up"})); cloudSave(payload);
       } catch (e) {
         console.error("cloud save (exit) failed", e);
       }
@@ -388,8 +400,8 @@ export default function App() {
     };
   }, [menuItems, rows]);
 
-  const handleCloudSave = async () => {try{const payload={menuItems,rows,schemaVersion:1};await cloudSave(payload);alert("クラウドに保存しました");}catch(e){console.error(e);alert("保存に失敗しました\n"+(e?.message??""));}};
-  const handleCloudLoad = async () => {try{const obj=await cloudLoad();if(!obj)throw new Error("No Data");if(Array.isArray(obj.menuItems))setMenuItems(obj.menuItems);if(Array.isArray(obj.rows))setRows(obj.rows);showToast("クラウドから読み込みました");}catch(e){console.error(e);alert("読み込みに失敗しました\n"+(e?.message??""));}};
+  const handleCloudSave = async () => {try{const payload={menuItems,rows,schemaVersion:1};window.dispatchEvent(new CustomEvent("cloud-indicator",{detail:"up"})); await window.dispatchEvent(new CustomEvent("cloud-indicator",{detail:"up"})); cloudSave(payload);alert("クラウドに保存しました");}catch(e){console.error(e);alert("保存に失敗しました\n"+(e?.message??""));}};
+  const handleCloudLoad = async () => {try{const obj=window.dispatchEvent(new CustomEvent("cloud-indicator",{detail:"down"})); await window.dispatchEvent(new CustomEvent("cloud-indicator",{detail:"down"})); cloudLoad();if(!obj)throw new Error("No Data");if(Array.isArray(obj.menuItems))setMenuItems(obj.menuItems);if(Array.isArray(obj.rows))setRows(obj.rows);showToast("クラウドから読み込みました");}catch(e){console.error(e);alert("読み込みに失敗しました\n"+(e?.message??""));}};
 
 
   // ---- Version auto-increment (robust) ----
@@ -447,7 +459,7 @@ export default function App() {
 
   const handleEdit = async () => {
   try {
-    const obj:any = await cloudLoad();
+    const obj:any = window.dispatchEvent(new CustomEvent("cloud-indicator",{detail:"down"})); await window.dispatchEvent(new CustomEvent("cloud-indicator",{detail:"down"})); cloudLoad();
     if (obj) {
       if (Array.isArray(obj.menuItems)) { setMenuItems(obj.menuItems); try { saveMenuItems(obj.menuItems); } catch {} }
       if (Array.isArray(obj.rows)) { setRows(obj.rows); try { saveRows(obj.rows); } catch {} }
@@ -577,6 +589,16 @@ export default function App() {
             </div>
           </div>
         )}
+      
+        {/* Cloud indicator overlay (App) */}
+        {cloudFX && (
+          <div className="fixed inset-0 z-[120] flex items-center justify-center pointer-events-none">
+            <div className="pointer-events-auto px-6 py-4 rounded-2xl shadow-lg bg-black/80 text-white text-5xl">
+              {cloudFX === "up" ? "☁️↑" : "☁️↓"}
+            </div>
+          </div>
+        )}
+
       </main>
 
       <footer className="fixed bottom-0 inset-x-0 z-50 pb-[calc(env(safe-area-inset-bottom,0px)+0.75rem)] border-t border-green-200 bg-green-100/80 backdrop-blur supports-[backdrop-filter]:bg-green-100/70 shadow">
@@ -603,6 +625,18 @@ function MenuEditor({
   
   // --- ephemeral toast overlay (0.5s) ---
   const [toastMsg, setToastMsg] = useState<string | null>(null);
+  // ---- Cloud activity overlay (MenuEditor) ----
+  const [cloudFX, setCloudFX] = useState<"up"|"down"|null>(null);
+  useEffect(() => {
+    const onFX = (e: any) => {
+      const dir = (e && e.detail) === "up" ? "up" : "down";
+      setCloudFX(dir);
+      setTimeout(() => setCloudFX(null), 2000);
+    };
+    window.addEventListener("cloud-indicator", onFX as any);
+    return () => window.removeEventListener("cloud-indicator", onFX as any);
+  }, []);
+
   const showToast = (msg: string) => {
     setToastMsg(msg);
     setTimeout(() => setToastMsg(null), 3000);
@@ -617,7 +651,7 @@ const [draft, setDraft] = useState<MenuItem[]>(() => items.map(i => ({ ...i })))
       onSave(draft);
       // クラウドはベストエフォート
       const payload = { menuItems: draft, schemaVersion: 1 };
-      try { await cloudSave(payload); showToast("保存しました(クラウド／ローカル)"); }
+      try { window.dispatchEvent(new CustomEvent("cloud-indicator",{detail:"up"})); await window.dispatchEvent(new CustomEvent("cloud-indicator",{detail:"up"})); cloudSave(payload); showToast("保存しました(クラウド／ローカル)"); }
       catch (e:any) { console.error(e); showToast("ローカルに保存しました（クラウドは後で再試行）"); }
     } finally {
       // 編集終了
@@ -629,7 +663,7 @@ const [draft, setDraft] = useState<MenuItem[]>(() => items.map(i => ({ ...i })))
   const handleCloudSaveEdit = async () => {
     try {
       const payload = { menuItems: draft, schemaVersion: 1 };
-      await cloudSave(payload);
+      window.dispatchEvent(new CustomEvent("cloud-indicator",{detail:"up"})); await window.dispatchEvent(new CustomEvent("cloud-indicator",{detail:"up"})); cloudSave(payload);
       onSave(draft); // ローカル保存も同時に
       showToast("保存しました(クラウド／ローカル)");
     } catch (e:any) {
@@ -639,7 +673,7 @@ const [draft, setDraft] = useState<MenuItem[]>(() => items.map(i => ({ ...i })))
   };
   const handleCloudLoadEdit = async () => {
     try {
-      const obj:any = await cloudLoad();
+      const obj:any = window.dispatchEvent(new CustomEvent("cloud-indicator",{detail:"down"})); await window.dispatchEvent(new CustomEvent("cloud-indicator",{detail:"down"})); cloudLoad();
       if (Array.isArray(obj?.menuItems)) {
         setDraft(obj.menuItems);
         onSave(obj.menuItems); // 親状態も更新し通常画面に即反映（ローカル保存も実施）
@@ -746,6 +780,15 @@ const [tab, setTab] = useState<Group>(() => ( (items[0]?.group ?? 1) as Group ))
       <h1 className="font-bold tracking-wide text-3xl md:text-4xl">メニュー編集</h1>
     </div>
   </div>
+
+{cloudFX && (
+  <div className="fixed inset-0 z-[110] flex items-center justify-center pointer-events-none">
+    <div className="pointer-events-auto px-6 py-4 rounded-2xl shadow-lg bg-black/80 text-white text-5xl">
+      {cloudFX === "up" ? "☁️↑" : "☁️↓"}
+    </div>
+  </div>
+)}
+
 {toastMsg && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center pointer-events-none">
             <div className="pointer-events-auto px-4 py-3 rounded-xl shadow-lg bg-black/80 text-white text-sm md:text-base">
@@ -885,6 +928,16 @@ const [tab, setTab] = useState<Group>(() => ( (items[0]?.group ?? 1) as Group ))
         </div>
 
         <div data-capture-hide className="h-[calc(env(safe-area-inset-bottom,0px)+6.5rem)]"></div>
+      
+        {/* Cloud indicator overlay (App) */}
+        {cloudFX && (
+          <div className="fixed inset-0 z-[120] flex items-center justify-center pointer-events-none">
+            <div className="pointer-events-auto px-6 py-4 rounded-2xl shadow-lg bg-black/80 text-white text-5xl">
+              {cloudFX === "up" ? "☁️↑" : "☁️↓"}
+            </div>
+          </div>
+        )}
+
       </main>
     </div>
   );
