@@ -14,7 +14,7 @@ async function decryptBlob(blob){const buf=new Uint8Array(await blob.arrayBuffer
 async function cloudSave(payload){const blob=await encryptJson(payload);const {error}=await supabase.storage.from("menus").upload(CLOUD_OBJECT_PATH,blob,{upsert:true,contentType:"application/octet-stream"});if(error)throw error;}
 async function cloudLoad(){const {data,error}=await supabase.storage.from("menus").download(CLOUD_OBJECT_PATH);if(error)throw error;return await decryptBlob(data);} 
 // ---- Versioning ----
-const FIXED_VERSION_TEXT = "v2.1.116";
+const FIXED_VERSION_TEXT = "v2.1.117";
 const VERSION_PREFIX = "2.1"; // major.minor
 const STORAGE_VERSION_PATCH = "menu.version.patch";
 function loadVersionPatch(): number {
@@ -718,7 +718,7 @@ const [tab, setTab] = useState<Group>(() => ( (items[0]?.group ?? 1) as Group ))
 
   return (
     <div id="capture" data-capture-root className="min-h-dvh w-full overflow-x-hidden bg-green-50 text-green-900 flex flex-col text-[clamp(16px,2.7vw,18px)]">
-      <header className=\"sticky top-0 z-30 backdrop-blur-sm\">
+      <header className="sticky top-0 z-30 backdrop-blur-sm">
         <div className="w-full text-center">
           <div className="relative">
             <button onClick={handleCancelAndSave} className="absolute left-0 top-1/2 -translate-y-1/2 h-9 min-h-[36px] px-4 whitespace-nowrap rounded-md border border-green-300 bg-white/80 hover:bg-white shadow-sm text-base md:text-lg">← 戻る</button>
