@@ -14,7 +14,7 @@ async function decryptBlob(blob){const buf=new Uint8Array(await blob.arrayBuffer
 async function cloudSave(payload){const blob=await encryptJson(payload);const {error}=await supabase.storage.from("menus").upload(CLOUD_OBJECT_PATH,blob,{upsert:true,contentType:"application/octet-stream"});if(error)throw error;}
 async function cloudLoad(){const {data,error}=await supabase.storage.from("menus").download(CLOUD_OBJECT_PATH);if(error)throw error;return await decryptBlob(data);} 
 // ---- Versioning ----
-const FIXED_VERSION_TEXT = "v2.1.123";
+const FIXED_VERSION_TEXT = "v2.1.124";
 const VERSION_PREFIX = "2.1"; // major.minor
 const STORAGE_VERSION_PATCH = "menu.version.patch";
 function loadVersionPatch(): number {
@@ -591,8 +591,7 @@ function MenuEditor({
 }) {
   
   // --- enhanced onCancel: cloud+local save then exit (rows from state) ---
-  const handleCancelAndSave = async () => {
-    showCloudEdit(); try { await cloudSave({ menuItems: draft, rows, schemaVersion: 1 }); } catch(e){ console.warn(e); }
+  const handleCancelAndSave = async () => { try { showCloudEdit(); } catch(e) {}; showCloudEdit(); try { showCloudEdit(); await cloudSave({ menuItems: draft, rows, schemaVersion: 1 }); } catch(e){ console.warn(e); }
     try { saveMenuItems(draft); } catch {}
     onCancel();
   };
@@ -619,7 +618,7 @@ const [draft, setDraft] = useState<MenuItem[]>(() => items.map(i => ({ ...i })))
       alert("保存に失敗しました\n"+(e?.message??""));
     }
   };
-  const handleCloudLoadEdit = async () => { showCloudEdit();
+  const handleCloudLoadEdit = async () => { try { showCloudEdit(); } catch(e) {}; showCloudEdit();
     try {
       const obj:any = await cloudLoad();
       if (Array.isArray(obj?.menuItems)) {
