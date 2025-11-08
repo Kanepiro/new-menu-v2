@@ -120,11 +120,7 @@ function Dropdown<T extends number>({
         </div>
       )}
     
-    {globalToast && (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center pointer-events-none">
-          <div className="pointer-events-auto px-4 py-2 rounded-xl shadow-lg bg-black/80 text-white text-2xl"> {globalToast} </div>
-        </div>
-      )}
+    
     </div>
   );
 }
@@ -177,8 +173,8 @@ const saveRows = (rows: Row[]) => {
 };
 
 export default function App() {
-  const [globalToast, setGlobalToast] = useState<string | null>(null);
-  const showCloud = (msg = "☁️") => { setGlobalToast(msg); setTimeout(() => setGlobalToast(null), 2000); };
+  
+  
   // global overlay for cloud ops
   
   
@@ -360,7 +356,7 @@ export default function App() {
 useEffect(() => {
   (async () => {
     try {
-      showCloud(); const obj:any = await cloudLoad();
+      const obj:any = await cloudLoad();
       if (Array.isArray(obj?.menuItems)) setMenuItems(obj.menuItems);
       if (Array.isArray(obj?.rows)) setRows(obj.rows);
       try { localStorage.setItem(STORAGE_MENU, JSON.stringify(obj?.menuItems ?? [])); } catch {}
@@ -370,7 +366,7 @@ useEffect(() => {
   })();
 
   const onBeforeUnload = async () => {
-    try { showCloud(); await cloudSave({ menuItems, rows, schemaVersion: 1 }); } catch {}
+    try { await cloudSave({ menuItems, rows, schemaVersion: 1 }); } catch {}
     try { localStorage.setItem(STORAGE_MENU, JSON.stringify(menuItems)); } catch {}
   };
   window.addEventListener("beforeunload", onBeforeUnload);
@@ -466,7 +462,7 @@ useEffect(() => {
         <div className="w-full grid grid-cols-3 items-center mt-2">
           <div className="flex justify-start">
             <button
-              onClick={async () => {  try { showCloud(); showCloud(); const obj:any = await cloudLoad(); if (Array.isArray(obj?.menuItems)) setMenuItems(obj.menuItems); if (Array.isArray(obj?.rows)) setRows(obj.rows); try { localStorage.setItem(STORAGE_MENU, JSON.stringify(obj?.menuItems ?? [])); } catch {} } catch(e){ console.warn(e);} setEditing(true); }}
+              onClick={async () => {  try { showCloud(); const obj:any = await cloudLoad(); if (Array.isArray(obj?.menuItems)) setMenuItems(obj.menuItems); if (Array.isArray(obj?.rows)) setRows(obj.rows); try { localStorage.setItem(STORAGE_MENU, JSON.stringify(obj?.menuItems ?? [])); } catch {} } catch(e){ console.warn(e);} setEditing(true); }}
               className="h-9 min-h-[36px] px-4 whitespace-nowrap rounded-xl border border-green-300 bg-white/80 hover:bg-white shadow-sm text-base md:text-lg"
             >
               編集
@@ -575,11 +571,7 @@ useEffect(() => {
         </div>
       </footer>
     
-    {globalToast && (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center pointer-events-none">
-          <div className="pointer-events-auto px-4 py-2 rounded-xl shadow-lg bg-black/80 text-white text-2xl"> {globalToast} </div>
-        </div>
-      )}
+    
     </div>
   );
 }
@@ -625,7 +617,7 @@ const [draft, setDraft] = useState<MenuItem[]>(() => items.map(i => ({ ...i })))
   };
   const handleCloudLoadEdit = async () => { showCloudEdit();
     try {
-      showCloud(); const obj:any = await cloudLoad();
+      const obj:any = await cloudLoad();
       if (Array.isArray(obj?.menuItems)) {
         setDraft(obj.menuItems);
         onSave(obj.menuItems); // 親状態も更新し通常画面に即反映（ローカル保存も実施）
@@ -890,11 +882,7 @@ const [tab, setTab] = useState<Group>(() => ( (items[0]?.group ?? 1) as Group ))
         <div data-capture-hide className="h-[calc(env(safe-area-inset-bottom,0px)+6.5rem)]"></div>
       </main>
     
-    {globalToast && (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center pointer-events-none">
-          <div className="pointer-events-auto px-4 py-2 rounded-xl shadow-lg bg-black/80 text-white text-2xl"> {globalToast} </div>
-        </div>
-      )}
+    
     </div>
   );
 }
