@@ -14,7 +14,7 @@ async function decryptBlob(blob){const buf=new Uint8Array(await blob.arrayBuffer
 async function cloudSave(payload){const blob=await encryptJson(payload);const {error}=await supabase.storage.from("menus").upload(CLOUD_OBJECT_PATH,blob,{upsert:true,contentType:"application/octet-stream"});if(error)throw error;}
 async function cloudLoad(){const {data,error}=await supabase.storage.from("menus").download(CLOUD_OBJECT_PATH);if(error)throw error;return await decryptBlob(data);} 
 // ---- Versioning ----
-const FIXED_VERSION_TEXT = "v2.1.125";
+const FIXED_VERSION_TEXT = "v2.1.126";
 const VERSION_PREFIX = "2.1"; // major.minor
 const STORAGE_VERSION_PATCH = "menu.version.patch";
 function loadVersionPatch(): number {
@@ -491,7 +491,7 @@ useEffect(() => {
 
       </header>
 
-      <main className="w-full max-w-3xl mx-auto px-4 mt-4 flex-1 pb-[calc(env(safe-area-inset-bottom,0px)+7rem)]" data-capture-root="true">
+      <main className="w-full max-w-3xl mx-auto px-4 mt-2 flex-1 pb-[calc(env(safe-area-inset-bottom,0px)+7rem)]" data-capture-root="true">
         <div className="space-y-3">
           {rows.map((r, i) => {
             const list = byGroup(menuItems, r.group);
@@ -535,7 +535,7 @@ useEffect(() => {
                 autoFocus
               />
               <div className="text-xs text-gray-500 mt-1">※パスワードは最低4文字です</div>
-              <div className="mt-4 flex items-center justify-end gap-3">
+              <div className="mt-2 flex items-center justify-end gap-3">
                 <button
                   type="button"
                   className="h-9 min-h-[36px] px-4 whitespace-nowrap leading-none rounded-md border border-green-300 bg-white hover:bg-green-50 shadow-sm text-base"
@@ -591,7 +591,7 @@ function MenuEditor({
 }) {
   
   // --- enhanced onCancel: cloud+local save then exit (rows from state) ---
-  const handleCancelAndSave = async () => { try { showCloudEdit(); } catch(e) {}; try { showCloudEdit(); } catch(e) {}; showCloudEdit(); try { showCloudEdit(); await cloudSave({ menuItems: draft, rows, schemaVersion: 1 }); } catch(e){ console.warn(e); }
+  const handleCancelAndSave = async () => { try { showCloudEdit(); } catch(e) {}; try { showCloudEdit(); } catch(e) {}; try { showCloudEdit(); } catch(e) {}; showCloudEdit(); try { showCloudEdit(); await cloudSave({ menuItems: draft, rows, schemaVersion: 1 }); } catch(e){ console.warn(e); }
     try { saveMenuItems(draft); } catch {}
     onCancel();
   };
@@ -618,7 +618,7 @@ const [draft, setDraft] = useState<MenuItem[]>(() => items.map(i => ({ ...i })))
       alert("保存に失敗しました\n"+(e?.message??""));
     }
   };
-  const handleCloudLoadEdit = async () => { try { showCloudEdit(); } catch(e) {}; try { showCloudEdit(); } catch(e) {}; showCloudEdit();
+  const handleCloudLoadEdit = async () => { try { showCloudEdit(); } catch(e) {}; try { showCloudEdit(); } catch(e) {}; try { showCloudEdit(); } catch(e) {}; showCloudEdit();
     try {
       const obj:any = await cloudLoad();
       if (Array.isArray(obj?.menuItems)) {
@@ -721,12 +721,12 @@ const [tab, setTab] = useState<Group>(() => ( (items[0]?.group ?? 1) as Group ))
   return (
     <div id="capture" data-capture-root className="min-h-dvh w-full overflow-x-hidden bg-green-50 text-green-900 flex flex-col text-[clamp(16px,2.7vw,18px)]">
       <header className="sticky top-0 z-30 backdrop-blur-sm">
-      <div className="w-full">
-        <div className="relative flex items-center justify-center py-1">
-          <button onClick={handleCancelAndSave} className="absolute left-0 top-1/2 -translate-y-1/2 h-9 min-h-[36px] px-4 whitespace-nowrap rounded-md border border-green-300 bg-white/80 hover:bg-white shadow-sm text-base md:text-lg">← 戻る</button>
-          <h1 className="font-bold tracking-wide text-3xl md:text-4xl">メニュー編集</h1>
-        </div>
-      </div>
+  <div className="w-full">
+    <div className="relative flex items-center justify-center py-0.5">
+      <button onClick={handleCancelAndSave} className="absolute left-0 top-1/2 -translate-y-1/2 h-9 min-h-[36px] px-4 whitespace-nowrap rounded-md border border-green-300 bg-white/80 hover:bg-white shadow-sm text-base md:text-lg">← 戻る</button>
+      <h1 className="font-bold tracking-wide text-3xl md:text-4xl" className="m-0 py-0">メニュー編集</h1>
+    </div>
+  </div>
         <div className="w-full grid grid-cols-3 items-center mt-2">
   <div className="flex items-center gap-2 justify-start">
     <button onClick={handleCancelAndSave} className="h-9 min-h-[36px] px-4 whitespace-nowrap rounded-lg border border-green-300 bg-white/80 hover:bg-white shadow-sm text-base md:text-lg">← 戻る</button>
@@ -753,7 +753,7 @@ const [tab, setTab] = useState<Group>(() => ( (items[0]?.group ?? 1) as Group ))
         )}
 </header>
 
-      <main className="w-full max-w-3xl mx-auto px-4 mt-4 flex-1 pb-[calc(env(safe-area-inset-bottom,0px)+7rem)]" data-capture-root="true">
+      <main className="w-full max-w-3xl mx-auto px-4 mt-2 flex-1 pb-[calc(env(safe-area-inset-bottom,0px)+7rem)]" data-capture-root="true">
         <div className="w-full flex justify-center">
           <div className={"mb-2 rounded-xl border border-green-300 bg-white/80 overflow-hidden " + (currentGroups().length >= 4 ? "grid grid-cols-3" : "inline-flex")}>
             {currentGroups().map((g, idx) => (
