@@ -14,7 +14,7 @@ async function decryptBlob(blob){const buf=new Uint8Array(await blob.arrayBuffer
 async function cloudSave(payload){const blob=await encryptJson(payload);const {error}=await supabase.storage.from("menus").upload(CLOUD_OBJECT_PATH,blob,{upsert:true,contentType:"application/octet-stream"});if(error)throw error;}
 async function cloudLoad(){const {data,error}=await supabase.storage.from("menus").download(CLOUD_OBJECT_PATH);if(error)throw error;return await decryptBlob(data);} 
 // ---- Versioning ----
-const FIXED_VERSION_TEXT = "v2.1.114";
+const FIXED_VERSION_TEXT = "v2.1.115";
 const VERSION_PREFIX = "2.1"; // major.minor
 const STORAGE_VERSION_PATCH = "menu.version.patch";
 function loadVersionPatch(): number {
@@ -348,6 +348,32 @@ export default function App() {
 
   useEffect(() => { saveRows(rows); }, [rows]);
   useEffect(() => { saveMenuItems(menuItems); }, [menuItems]);
+
+  // アプリ終了/バックグラウンド時に自動保存（ローカルは確実、クラウドはベストエフォート）
+  useEffect(() => {
+    const saveOnExit = async () => {
+      try {
+        // ローカル保存は同期的に
+        saveMenuItems(menuItems);
+        saveRows(rows);
+      } catch {}
+      try {
+        const payload = { menuItems, rows, schemaVersion: 1 } as any;
+        await cloudSave(payload);
+      } catch (e) {
+        console.error("cloud save (exit) failed", e);
+      }
+    };
+    const onVis = () => { if (document.visibilityState === "hidden") saveOnExit(); };
+    const onPageHide = () => { saveOnExit(); };
+    document.addEventListener("visibilitychange", onVis);
+    window.addEventListener("pagehide", onPageHide);
+    return () => {
+      document.removeEventListener("visibilitychange", onVis);
+      window.removeEventListener("pagehide", onPageHide);
+    };
+  }, [menuItems, rows]);
+
   const handleCloudSave = async () => {try{const payload={menuItems,rows,schemaVersion:1};await cloudSave(payload);alert("クラウドに保存しました");}catch(e){console.error(e);alert("保存に失敗しました\n"+(e?.message??""));}};
   const handleCloudLoad = async () => {try{const obj=await cloudLoad();if(!obj)throw new Error("No Data");if(Array.isArray(obj.menuItems))setMenuItems(obj.menuItems);if(Array.isArray(obj.rows))setRows(obj.rows);showToast("クラウドから読み込みました");}catch(e){console.error(e);alert("読み込みに失敗しました\n"+(e?.message??""));}};
 
@@ -560,7 +586,23 @@ function MenuEditor({
   };
 const [draft, setDraft] = useState<MenuItem[]>(() => items.map(i => ({ ...i })));
 
-  // Cloud handlers (edit screen)
+    // 統合保存（ローカル→クラウド）。失敗してもローカルは必ず保存
+  const saveBothEdit = async () => {
+    try {
+      // 先にローカル
+      saveMenuItems(draft);
+      onSave(draft);
+      // クラウドはベストエフォート
+      const payload = { menuItems: draft, schemaVersion: 1 };
+      try { await cloudSave(payload); showToast("保存しました(クラウド／ローカル)"); }
+      catch (e:any) { console.error(e); showToast("ローカルに保存しました（クラウドは後で再試行）"); }
+    } finally {
+      // 編集終了
+      onCancel();
+    }
+  };
+
+// Cloud handlers (edit screen)
   const handleCloudSaveEdit = async () => {
     try {
       const payload = { menuItems: draft, schemaVersion: 1 };
@@ -677,7 +719,7 @@ const [tab, setTab] = useState<Group>(() => ( (items[0]?.group ?? 1) as Group ))
       <header className="w-full max-w-3xl mx-auto pt-4 px-4">
   <div className="w-full flex justify-center">
     <div className="inline-flex items-center gap-3">
-      <button onClick={onCancel} className="h-9 min-h-[36px] px-4 whitespace-nowrap rounded-lg border border-green-300 bg-white/80 hover:bg-white shadow-sm text-base md:text-lg">← 戻る</button>
+      <button onClick={saveBothEdit}  className="h-9 min-h-[36px] px-4 whitespace-nowrap rounded-lg border border-green-300 bg-white/80 hover:bg-white shadow-sm text-base md:text-lg">←保存</button>
       <h1 className="font-bold tracking-wide text-3xl md:text-4xl">メニュー編集</h1>
     </div>
   </div>
