@@ -14,7 +14,7 @@ async function decryptBlob(blob){const buf=new Uint8Array(await blob.arrayBuffer
 async function cloudSave(payload){const blob=await encryptJson(payload);const {error}=await supabase.storage.from("menus").upload(CLOUD_OBJECT_PATH,blob,{upsert:true,contentType:"application/octet-stream"});if(error)throw error;}
 async function cloudLoad(){const {data,error}=await supabase.storage.from("menus").download(CLOUD_OBJECT_PATH);if(error)throw error;return await decryptBlob(data);} 
 // ---- Versioning ----
-const FIXED_VERSION_TEXT = "v2.1.115";
+const FIXED_VERSION_TEXT = "v2.1.116";
 const VERSION_PREFIX = "2.1"; // major.minor
 const STORAGE_VERSION_PATCH = "menu.version.patch";
 function loadVersionPatch(): number {
@@ -119,6 +119,11 @@ function Dropdown<T extends number>({
           </div>
         </div>
       )}
+    {globalToast && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center pointer-events-none">
+          <div className="pointer-events-auto px-4 py-2 rounded-xl shadow-lg bg-black/80 text-white text-2xl"> {globalToast} </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -171,6 +176,9 @@ const saveRows = (rows: Row[]) => {
 };
 
 export default function App() {
+  // global overlay for cloud ops
+  const [globalToast, setGlobalToast] = useState<string | null>(null);
+  const showCloud = (msg = "☁️") => { setGlobalToast(msg); setTimeout(() => setGlobalToast(null), 2000); };
 
   // ===== PDF Modal State (inside App) =====
   const [menuOpen, setMenuOpen] = useState(false);
@@ -349,7 +357,7 @@ export default function App() {
 useEffect(() => {
   (async () => {
     try {
-      const obj:any = await cloudLoad();
+      showCloud(); const obj:any = await cloudLoad();
       if (Array.isArray(obj?.menuItems)) setMenuItems(obj.menuItems);
       if (Array.isArray(obj?.rows)) setRows(obj.rows);
       try { localStorage.setItem(STORAGE_MENU, JSON.stringify(obj?.menuItems ?? [])); } catch {}
@@ -359,7 +367,7 @@ useEffect(() => {
   })();
 
   const onBeforeUnload = async () => {
-    try { await cloudSave({ menuItems, rows, schemaVersion: 1 }); } catch {}
+    try { showCloud(); await cloudSave({ menuItems, rows, schemaVersion: 1 }); } catch {}
     try { localStorage.setItem(STORAGE_MENU, JSON.stringify(menuItems)); } catch {}
   };
   window.addEventListener("beforeunload", onBeforeUnload);
@@ -455,7 +463,7 @@ useEffect(() => {
         <div className="w-full grid grid-cols-3 items-center mt-2">
           <div className="flex justify-start">
             <button
-              onClick={async () => { try { const obj:any = await cloudLoad(); if (Array.isArray(obj?.menuItems)) setMenuItems(obj.menuItems); if (Array.isArray(obj?.rows)) setRows(obj.rows); try { localStorage.setItem(STORAGE_MENU, JSON.stringify(obj?.menuItems ?? [])); } catch {} } catch(e){ console.warn(e);} setEditing(true); }}
+              onClick={async () => { try { showCloud(); const obj:any = await cloudLoad(); if (Array.isArray(obj?.menuItems)) setMenuItems(obj.menuItems); if (Array.isArray(obj?.rows)) setRows(obj.rows); try { localStorage.setItem(STORAGE_MENU, JSON.stringify(obj?.menuItems ?? [])); } catch {} } catch(e){ console.warn(e);} setEditing(true); }}
               className="h-9 min-h-[36px] px-4 whitespace-nowrap rounded-xl border border-green-300 bg-white/80 hover:bg-white shadow-sm text-base md:text-lg"
             >
               編集
@@ -563,6 +571,11 @@ useEffect(() => {
           </div>
         </div>
       </footer>
+    {globalToast && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center pointer-events-none">
+          <div className="pointer-events-auto px-4 py-2 rounded-xl shadow-lg bg-black/80 text-white text-2xl"> {globalToast} </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -579,7 +592,7 @@ function MenuEditor({
   
   // --- enhanced onCancel: cloud+local save then exit (rows from state) ---
   const handleCancelAndSave = async () => {
-    try { await cloudSave({ menuItems: draft, rows, schemaVersion: 1 }); } catch(e){ console.warn(e); }
+    showCloud(); try { await cloudSave({ menuItems: draft, rows, schemaVersion: 1 }); } catch(e){ console.warn(e); }
     try { saveMenuItems(draft); } catch {}
     onCancel();
   };
@@ -592,7 +605,7 @@ function MenuEditor({
 const [draft, setDraft] = useState<MenuItem[]>(() => items.map(i => ({ ...i })));
 
   // Cloud handlers (edit screen)
-  const handleCloudSaveEdit = async () => {
+  const handleCloudSaveEdit = async () => { showCloud();
     try {
       const payload = { menuItems: draft, schemaVersion: 1 };
       await cloudSave(payload);
@@ -603,9 +616,9 @@ const [draft, setDraft] = useState<MenuItem[]>(() => items.map(i => ({ ...i })))
       alert("保存に失敗しました\n"+(e?.message??""));
     }
   };
-  const handleCloudLoadEdit = async () => {
+  const handleCloudLoadEdit = async () => { showCloud();
     try {
-      const obj:any = await cloudLoad();
+      showCloud(); const obj:any = await cloudLoad();
       if (Array.isArray(obj?.menuItems)) {
         setDraft(obj.menuItems);
         onSave(obj.menuItems); // 親状態も更新し通常画面に即反映（ローカル保存も実施）
@@ -705,9 +718,12 @@ const [tab, setTab] = useState<Group>(() => ( (items[0]?.group ?? 1) as Group ))
 
   return (
     <div id="capture" data-capture-root className="min-h-dvh w-full overflow-x-hidden bg-green-50 text-green-900 flex flex-col text-[clamp(16px,2.7vw,18px)]">
-      <header className="w-full max-w-3xl mx-auto pt-4 px-4">
+      <header className=\"sticky top-0 z-30 backdrop-blur-sm\">
         <div className="w-full text-center">
-          <h1 className="font-bold tracking-wide text-3xl md:text-4xl">メニュー編集</h1>
+          <div className="relative">
+            <button onClick={handleCancelAndSave} className="absolute left-0 top-1/2 -translate-y-1/2 h-9 min-h-[36px] px-4 whitespace-nowrap rounded-md border border-green-300 bg-white/80 hover:bg-white shadow-sm text-base md:text-lg">← 戻る</button>
+            <h1 className="font-bold tracking-wide text-3xl md:text-4xl">メニュー編集</h1>
+        </div>
         </div>
         <div className="w-full grid grid-cols-3 items-center mt-2">
   <div className="flex items-center gap-2 justify-start">
@@ -861,6 +877,11 @@ const [tab, setTab] = useState<Group>(() => ( (items[0]?.group ?? 1) as Group ))
 
         <div data-capture-hide className="h-[calc(env(safe-area-inset-bottom,0px)+6.5rem)]"></div>
       </main>
+    {globalToast && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center pointer-events-none">
+          <div className="pointer-events-auto px-4 py-2 rounded-xl shadow-lg bg-black/80 text-white text-2xl"> {globalToast} </div>
+        </div>
+      )}
     </div>
   );
 }
