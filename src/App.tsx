@@ -14,7 +14,7 @@ async function decryptBlob(blob){const buf=new Uint8Array(await blob.arrayBuffer
 async function cloudSave(payload){const blob=await encryptJson(payload);const {error}=await supabase.storage.from("menus").upload(CLOUD_OBJECT_PATH,blob,{upsert:true,contentType:"application/octet-stream"});if(error)throw error;}
 async function cloudLoad(){const {data,error}=await supabase.storage.from("menus").download(CLOUD_OBJECT_PATH);if(error)throw error;return await decryptBlob(data);} 
 // ---- Versioning ----
-const FIXED_VERSION_TEXT = "v2.1.130";
+const FIXED_VERSION_TEXT = "v2.1.131";
 const VERSION_PREFIX = "2.1"; // major.minor
 const STORAGE_VERSION_PATCH = "menu.version.patch";
 function loadVersionPatch(): number {
@@ -696,7 +696,7 @@ const [tab, setTab] = useState<Group>(() => ( (items[0]?.group ?? 1) as Group ))
         </div>
         <div className="w-full grid grid-cols-3 items-center mt-2">
   <div className="flex items-center gap-2 justify-start">
-    <button onClick={onCancel} className="h-9 min-h-[36px] px-4 whitespace-nowrap rounded-lg border border-green-300 bg-white/80 hover:bg-white shadow-sm text-base md:text-lg">← 戻る</button>
+    <button onClick={handleBackWithCloudSave} className="h-9 min-h-[36px] px-4 whitespace-nowrap rounded-lg border border-green-300 bg-white/80 hover:bg-white shadow-sm text-base md:text-lg">← 戻る</button>
     <button onClick={handleLocalSaveEdit} className="h-9 min-h-[36px] px-4 whitespace-nowrap rounded-lg border border-green-300 bg-white hover:bg-green-50 shadow-sm text-base md:text-lg">保存📁</button>
   </div>
   <div className="flex justify-center">{/* 中央は空（センタリング解除） */}</div>
@@ -710,6 +710,14 @@ const [tab, setTab] = useState<Group>(() => ( (items[0]?.group ?? 1) as Group ))
           <div className="fixed inset-0 z-[100] flex items-center justify-center pointer-events-none">
             <div className="pointer-events-auto px-4 py-3 rounded-xl shadow-lg bg-black/80 text-white text-sm md:text-base">
               {toastMsg}
+            </div>
+          </div>
+        )}
+
+        {cloudOverlayEdit && (
+          <div className="fixed inset-0 z-[110] flex items-center justify-center pointer-events-none">
+            <div className="pointer-events-auto px-6 py-4 rounded-2xl shadow-lg bg-black/80 text-white text-2xl md:text-3xl">
+              ☁️
             </div>
           </div>
         )}
