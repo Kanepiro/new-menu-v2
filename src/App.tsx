@@ -14,7 +14,7 @@ async function decryptBlob(blob){const buf=new Uint8Array(await blob.arrayBuffer
 async function cloudSave(payload){const blob=await encryptJson(payload);const {error}=await supabase.storage.from("menus").upload(CLOUD_OBJECT_PATH,blob,{upsert:true,contentType:"application/octet-stream"});if(error)throw error;}
 async function cloudLoad(){const {data,error}=await supabase.storage.from("menus").download(CLOUD_OBJECT_PATH);if(error)throw error;return await decryptBlob(data);} 
 // ---- Versioning ----
-const FIXED_VERSION_TEXT = "v2.1.133";
+const FIXED_VERSION_TEXT = "v2.1.134";
 const VERSION_PREFIX = "2.1"; // major.minor
 const STORAGE_VERSION_PATCH = "menu.version.patch";
 function loadVersionPatch(): number {
@@ -121,14 +121,7 @@ function Dropdown<T extends number>({
       )}
     </div>
   
-        {cloudOverlayEdit && (
-          <div className="fixed inset-0 z-[110] flex items-center justify-center pointer-events-none">
-            <div className="pointer-events-auto px-6 py-4 rounded-2xl shadow-lg bg-black/80 text-white text-2xl md:text-3xl">
-              ☁️
-            </div>
-          </div>
-        )}
-      );
+              );
 }
 
 type Row = { group: Group; index: number };
