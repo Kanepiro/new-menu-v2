@@ -14,7 +14,7 @@ async function decryptBlob(blob){const buf=new Uint8Array(await blob.arrayBuffer
 async function cloudSave(payload){const blob=await encryptJson(payload);const {error}=await supabase.storage.from("menus").upload(CLOUD_OBJECT_PATH,blob,{upsert:true,contentType:"application/octet-stream"});if(error)throw error;}
 async function cloudLoad(){const {data,error}=await supabase.storage.from("menus").download(CLOUD_OBJECT_PATH);if(error)throw error;return await decryptBlob(data);} 
 // ---- Versioning ----
-const FIXED_VERSION_TEXT = "v2.1.117";
+const FIXED_VERSION_TEXT = "v2.1.118";
 const VERSION_PREFIX = "2.1"; // major.minor
 const STORAGE_VERSION_PATCH = "menu.version.patch";
 function loadVersionPatch(): number {
@@ -592,12 +592,15 @@ function MenuEditor({
   
   // --- enhanced onCancel: cloud+local save then exit (rows from state) ---
   const handleCancelAndSave = async () => {
-    showCloud(); try { await cloudSave({ menuItems: draft, rows, schemaVersion: 1 }); } catch(e){ console.warn(e); }
+    showCloudEdit(); try { await cloudSave({ menuItems: draft, rows, schemaVersion: 1 }); } catch(e){ console.warn(e); }
     try { saveMenuItems(draft); } catch {}
     onCancel();
   };
   // --- ephemeral toast overlay (0.5s) ---
   const [toastMsg, setToastMsg] = useState<string | null>(null);
+  // local cloud overlay (2s)
+  const [cloudToastEdit, setCloudToastEdit] = useState<string | null>(null);
+  const showCloudEdit = (msg = "☁️") => { setCloudToastEdit(msg); setTimeout(() => setCloudToastEdit(null), 2000); };
   const showToast = (msg: string) => {
     setToastMsg(msg);
     setTimeout(() => setToastMsg(null), 3000);
@@ -605,7 +608,7 @@ function MenuEditor({
 const [draft, setDraft] = useState<MenuItem[]>(() => items.map(i => ({ ...i })));
 
   // Cloud handlers (edit screen)
-  const handleCloudSaveEdit = async () => { showCloud();
+  const handleCloudSaveEdit = async () => { showCloudEdit();
     try {
       const payload = { menuItems: draft, schemaVersion: 1 };
       await cloudSave(payload);
@@ -616,7 +619,7 @@ const [draft, setDraft] = useState<MenuItem[]>(() => items.map(i => ({ ...i })))
       alert("保存に失敗しました\n"+(e?.message??""));
     }
   };
-  const handleCloudLoadEdit = async () => { showCloud();
+  const handleCloudLoadEdit = async () => { showCloudEdit();
     try {
       showCloud(); const obj:any = await cloudLoad();
       if (Array.isArray(obj?.menuItems)) {
@@ -737,6 +740,11 @@ const [tab, setTab] = useState<Group>(() => ( (items[0]?.group ?? 1) as Group ))
   </div>
 </div>
       
+        {cloudToastEdit && (
+          <div className="fixed inset-0 z-[180] flex items-center justify-center pointer-events-none">
+            <div className="pointer-events-auto px-4 py-2 rounded-xl shadow-lg bg-black/80 text-white text-2xl"> {cloudToastEdit} </div>
+          </div>
+        )}
         {toastMsg && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center pointer-events-none">
             <div className="pointer-events-auto px-4 py-3 rounded-xl shadow-lg bg-black/80 text-white text-sm md:text-base">
