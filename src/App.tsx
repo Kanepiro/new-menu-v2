@@ -14,7 +14,7 @@ async function decryptBlob(blob){const buf=new Uint8Array(await blob.arrayBuffer
 async function cloudSave(payload){const blob=await encryptJson(payload);const {error}=await supabase.storage.from("menus").upload(CLOUD_OBJECT_PATH,blob,{upsert:true,contentType:"application/octet-stream"});if(error)throw error;}
 async function cloudLoad(){const {data,error}=await supabase.storage.from("menus").download(CLOUD_OBJECT_PATH);if(error)throw error;return await decryptBlob(data);} 
 // ---- Versioning ----
-const FIXED_VERSION_TEXT = "v2.1.131";
+const FIXED_VERSION_TEXT = "v2.1.132";
 const VERSION_PREFIX = "2.1"; // major.minor
 const STORAGE_VERSION_PATCH = "menu.version.patch";
 function loadVersionPatch(): number {
@@ -120,8 +120,17 @@ function Dropdown<T extends number>({
         </div>
       )}
     </div>
-  );
+  
+        {cloudOverlayEdit && (
+          <div className="fixed inset-0 z-[110] flex items-center justify-center pointer-events-none">
+            <div className="pointer-events-auto px-6 py-4 rounded-2xl shadow-lg bg-black/80 text-white text-2xl md:text-3xl">
+              ☁️
+            </div>
+          </div>
+        )}
+      );
 }
+
 type Row = { group: Group; index: number };
 
 const STORAGE_ROWS = "new-menu-v2-rows";
@@ -438,7 +447,7 @@ export default function App() {
         <div className="w-full grid grid-cols-3 items-center mt-2">
           <div className="flex justify-start">
             <button
-              onClick={async () => { try { showCloudOverlay(2000); const obj:any = await cloudLoad(); if (Array.isArray(obj?.menuItems)) { setMenuItems(obj.menuItems); } } catch(e){ console.error(e); /* fallthrough */ } finally { setTimeout(() => setEditing(true), 200); } }}
+              onClick={async () => { try { const obj:any = await cloudLoad(); if (Array.isArray(obj?.menuItems)) { setMenuItems(obj.menuItems); } showCloudOverlay(2000); setTimeout(() => setEditing(true), 2000); } catch(e){ console.error(e); showCloudOverlay(2000); setTimeout(() => setEditing(true), 2000); } }}
               className="h-9 min-h-[36px] px-4 whitespace-nowrap rounded-xl border border-green-300 bg-white/80 hover:bg-white shadow-sm text-base md:text-lg"
             >
               編集
@@ -710,14 +719,6 @@ const [tab, setTab] = useState<Group>(() => ( (items[0]?.group ?? 1) as Group ))
           <div className="fixed inset-0 z-[100] flex items-center justify-center pointer-events-none">
             <div className="pointer-events-auto px-4 py-3 rounded-xl shadow-lg bg-black/80 text-white text-sm md:text-base">
               {toastMsg}
-            </div>
-          </div>
-        )}
-
-        {cloudOverlayEdit && (
-          <div className="fixed inset-0 z-[110] flex items-center justify-center pointer-events-none">
-            <div className="pointer-events-auto px-6 py-4 rounded-2xl shadow-lg bg-black/80 text-white text-2xl md:text-3xl">
-              ☁️
             </div>
           </div>
         )}
