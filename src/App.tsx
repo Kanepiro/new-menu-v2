@@ -14,7 +14,7 @@ async function decryptBlob(blob){const buf=new Uint8Array(await blob.arrayBuffer
 async function cloudSave(payload){const blob=await encryptJson(payload);const {error}=await supabase.storage.from("menus").upload(CLOUD_OBJECT_PATH,blob,{upsert:true,contentType:"application/octet-stream"});if(error)throw error;}
 async function cloudLoad(){const {data,error}=await supabase.storage.from("menus").download(CLOUD_OBJECT_PATH);if(error)throw error;return await decryptBlob(data);} 
 // ---- Versioning ----
-const FIXED_VERSION_TEXT = "v2.1.113";
+const FIXED_VERSION_TEXT = "v2.1.114";
 const VERSION_PREFIX = "2.1"; // major.minor
 const STORAGE_VERSION_PATCH = "menu.version.patch";
 function loadVersionPatch(): number {
@@ -678,10 +678,7 @@ const [tab, setTab] = useState<Group>(() => ( (items[0]?.group ?? 1) as Group ))
         <div className="w-full text-center">
           <h1 className="font-bold tracking-wide text-3xl md:text-4xl">メニュー編集</h1>
         </div>
-        <div className="w-full grid grid-cols-3 items-center mt-2">
-  <div className="flex items-center gap-2 justify-start">
-    <button onClick={onCancel} className="h-9 min-h-[36px] px-4 whitespace-nowrap rounded-lg border border-green-300 bg-white/80 hover:bg-white shadow-sm text-base md:text-lg">← 戻る</button> </div>
-  <div className="flex justify-center">{/* 中央は空（センタリング解除） */}</div>
+        <div className="w-full flex justify-center mt-2">  <div className="inline-flex items-center gap-3">    <button onClick={onCancel} className="h-9 min-h-[36px] px-4 whitespace-nowrap rounded-xl border border-neutral-300 bg-white/80 hover:bg-white shadow-sm text-base md:text-lg">← 戻る</button>    <h1 className="font-bold tracking-wide text-3xl md:text-4xl">メニュー編集</h1>  </div></div><div className="flex justify-center">{/* 中央は空（センタリング解除） */}</div>
   
 </div>
       
