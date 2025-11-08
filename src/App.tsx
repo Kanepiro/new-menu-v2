@@ -14,7 +14,7 @@ async function decryptBlob(blob){const buf=new Uint8Array(await blob.arrayBuffer
 async function cloudSave(payload){const blob=await encryptJson(payload);const {error}=await supabase.storage.from("menus").upload(CLOUD_OBJECT_PATH,blob,{upsert:true,contentType:"application/octet-stream"});if(error)throw error;}
 async function cloudLoad(){const {data,error}=await supabase.storage.from("menus").download(CLOUD_OBJECT_PATH);if(error)throw error;return await decryptBlob(data);} 
 // ---- Versioning ----
-const FIXED_VERSION_TEXT = "v2.1.112";
+const FIXED_VERSION_TEXT = "v2.1.113";
 const VERSION_PREFIX = "2.1"; // major.minor
 const STORAGE_VERSION_PATCH = "menu.version.patch";
 function loadVersionPatch(): number {
@@ -344,6 +344,41 @@ export default function App() {
 
   const [menuItems, setMenuItems] = useState<MenuItem[]>(loadMenuItems);
   const [rows, setRows] = useState<Row[]>(() => loadRows(loadMenuItems()));
+  
+// === Auto sync on mount/unmount ===
+useEffect(() => {
+  (async () => {
+    try {
+      const obj:any = await cloudLoad();
+      if (Array.isArray(obj?.menuItems)) {
+        setMenuItems(obj.menuItems);
+      }
+      if (Array.isArray(obj?.rows)) {
+        setRows(obj.rows);
+      }
+      // save to local after cloud load
+      try { localStorage.setItem(STORAGE_MENU, JSON.stringify(obj?.menuItems ?? menuItems)); } catch {}
+    } catch (e) {
+      // ignore if cloud not yet available
+      console.warn("Initial cloud load failed:", e && (e as any).message);
+    }
+  })();
+
+  const onBeforeUnload = async () => {
+    try {
+      const payload = { menuItems, rows, schemaVersion: 1 };
+      await cloudSave(payload);
+    } catch {}
+    try { localStorage.setItem(STORAGE_MENU, JSON.stringify(menuItems)); } catch {}
+  };
+  window.addEventListener("beforeunload", onBeforeUnload);
+  return () => {
+    window.removeEventListener("beforeunload", onBeforeUnload);
+    // also try to persist when component unmounts
+    try { localStorage.setItem(STORAGE_MENU, JSON.stringify(menuItems)); } catch {}
+  };
+}, []);
+
   const [editing, setEditing] = useState(false);
 
   useEffect(() => { saveRows(rows); }, [rows]);
@@ -430,7 +465,7 @@ export default function App() {
         <div className="w-full grid grid-cols-3 items-center mt-2">
           <div className="flex justify-start">
             <button
-              onClick={() => setEditing(true)}
+              onClick={async () => { try { const obj:any = await cloudLoad(); if (Array.isArray(obj?.menuItems)) { setMenuItems(obj.menuItems); } if (Array.isArray(obj?.rows)) { setRows(obj.rows); } try { localStorage.setItem(STORAGE_MENU, JSON.stringify(obj?.menuItems ?? menuItems)); } catch {} } catch(e) { console.warn(e); } setEditing(true); }}
               className="h-9 min-h-[36px] px-4 whitespace-nowrap rounded-xl border border-green-300 bg-white/80 hover:bg-white shadow-sm text-base md:text-lg"
             >
               編集
@@ -546,12 +581,30 @@ export default function App() {
 function MenuEditor({
   items,
   onCancel,
-  onSave }: {
+  onSave }:{
   items: MenuItem[];
   onCancel: () => void;
   onSave: (items: MenuItem[]) => void;
 }) {
   
+  // --- enhanced onCancel: save cloud+local then exit ---
+  const handleCancelAndSave = async () => {
+    try {
+      const payload = { menuItems: draft, rows: rowsRef.current ?? [], schemaVersion: 1 };
+      await cloudSave(payload);
+    } catch(e) { console.warn(e); }
+    try { saveMenuItems(draft); } catch {}
+    onCancel();
+  };
+
+
+  const rowsRef = React.useRef<any[]>([]);
+  useEffect(() => {
+    try {
+      rowsRef.current = loadRows(draft);
+    } catch {}
+  }, [draft]);
+
   // --- ephemeral toast overlay (0.5s) ---
   const [toastMsg, setToastMsg] = useState<string | null>(null);
   const showToast = (msg: string) => {
@@ -679,14 +732,7 @@ const [tab, setTab] = useState<Group>(() => ( (items[0]?.group ?? 1) as Group ))
           <h1 className="font-bold tracking-wide text-3xl md:text-4xl">メニュー編集</h1>
         </div>
         <div className="w-full grid grid-cols-3 items-center mt-2">
-  <div className="flex items-center gap-2 justify-start">
-    <button onClick={onCancel} className="h-9 min-h-[36px] px-4 whitespace-nowrap rounded-lg border border-green-300 bg-white/80 hover:bg-white shadow-sm text-base md:text-lg">← 戻る</button>
-    <button onClick={handleLocalSaveEdit} className="h-9 min-h-[36px] px-4 whitespace-nowrap rounded-lg border border-green-300 bg-white hover:bg-green-50 shadow-sm text-base md:text-lg">保存📁</button>
-  </div>
-  <div className="flex justify-center">{/* 中央は空（センタリング解除） */}</div>
-  <div className="flex items-center gap-2 justify-end">
-    <button onClick={handleCloudSaveEdit} className="h-9 min-h-[36px] px-4 whitespace-nowrap rounded-lg border border-green-300 bg-white hover:bg-green-50 shadow-sm text-base">保存☁️</button>
-    <button onClick={handleCloudLoadEdit} className="h-9 min-h-[36px] px-4 whitespace-nowrap rounded-lg border border-green-300 bg-white hover:bg-green-50 shadow-sm text-base">読込☁️</button>
+  <div className="flex items-center gap-2 justify-start"><button onClick={handleCancelAndSave} className="h-9 min-h-[36px] px-4 whitespace-nowrap rounded-md border border-green-300 bg-white/80 hover:bg-white shadow-sm text-base md:text-lg">← 戻る</button></div><div className="flex justify-center"></div><div className="flex items-center gap-2 justify-end">
   </div>
 </div>
       
