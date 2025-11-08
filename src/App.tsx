@@ -14,7 +14,7 @@ async function decryptBlob(blob){const buf=new Uint8Array(await blob.arrayBuffer
 async function cloudSave(payload){const blob=await encryptJson(payload);const {error}=await supabase.storage.from("menus").upload(CLOUD_OBJECT_PATH,blob,{upsert:true,contentType:"application/octet-stream"});if(error)throw error;}
 async function cloudLoad(){const {data,error}=await supabase.storage.from("menus").download(CLOUD_OBJECT_PATH);if(error)throw error;return await decryptBlob(data);} 
 // ---- Versioning ----
-const FIXED_VERSION_TEXT = "v2.1.140";
+const FIXED_VERSION_TEXT = "v2.1.112";
 const VERSION_PREFIX = "2.1"; // major.minor
 const STORAGE_VERSION_PATCH = "menu.version.patch";
 function loadVersionPatch(): number {
@@ -120,10 +120,8 @@ function Dropdown<T extends number>({
         </div>
       )}
     </div>
-  
-              );
+  );
 }
-
 type Row = { group: Group; index: number };
 
 const STORAGE_ROWS = "new-menu-v2-rows";
@@ -352,6 +350,8 @@ export default function App() {
   useEffect(() => { saveMenuItems(menuItems); }, [menuItems]);
   const handleCloudSave = async () => {try{const payload={menuItems,rows,schemaVersion:1};await cloudSave(payload);alert("クラウドに保存しました");}catch(e){console.error(e);alert("保存に失敗しました\n"+(e?.message??""));}};
   const handleCloudLoad = async () => {try{const obj=await cloudLoad();if(!obj)throw new Error("No Data");if(Array.isArray(obj.menuItems))setMenuItems(obj.menuItems);if(Array.isArray(obj.rows))setRows(obj.rows);showToast("クラウドから読み込みました");}catch(e){console.error(e);alert("読み込みに失敗しました\n"+(e?.message??""));}};
+
+
   // ---- Version auto-increment (robust) ----
   const prevSnapRef = React.useRef<string | null>(null);
   useEffect(() => {
@@ -432,7 +432,7 @@ export default function App() {
             <button
               onClick={() => setEditing(true)}
               className="h-9 min-h-[36px] px-4 whitespace-nowrap rounded-xl border border-green-300 bg-white/80 hover:bg-white shadow-sm text-base md:text-lg"
-             onClick={() => setEditing(true)}>
+            >
               編集
             </button>
           </div>
@@ -453,7 +453,8 @@ export default function App() {
             </button>
           </div>
         </div>
-</header>
+
+      </header>
 
       <main className="w-full max-w-3xl mx-auto px-4 mt-4 flex-1 pb-[calc(env(safe-area-inset-bottom,0px)+7rem)]" data-capture-root="true">
         <div className="space-y-3">
@@ -511,7 +512,14 @@ export default function App() {
                 <button
                   type="button"
                   className={"px-4 py-1 rounded-md border shadow-sm text-base " + (pdfPwd.length >= 4 && !pdfBusy ? "border-green-500 bg-green-600 text-white hover:brightness-110" : "border-gray-300 bg-gray-200 text-gray-500 cursor-not-allowed")}
-                  onClick={() => setEditing(true)}
+                  onClick={async () => {
+                    if (pdfPwd.length < 4 || pdfBusy) return;
+                    const pwd = pdfPwd;
+                    setPdfOpen(false);
+                    setPdfPwd("");
+                    await new Promise(r => setTimeout(r, 0));
+                    await makePasswordPdf(pwd);
+                  }}
                   disabled={pdfPwd.length < 4 || pdfBusy}
                 >
                   {pdfBusy ? "作成中..." : "OK"}
@@ -551,22 +559,6 @@ function MenuEditor({
     setTimeout(() => setToastMsg(null), 3000);
   };
 const [draft, setDraft] = useState<MenuItem[]>(() => items.map(i => ({ ...i })));
-
-  // 初回マウント時：クラウド読込→ローカル保存→トースト表示（安全配置）
-  useEffect(() => {
-    let done = false;
-    setTimeout(async () => {
-      try {
-        const obj: any = await cloudLoad().catch(e => { console.error(e); return null; });
-        if (!done && Array.isArray(obj?.menuItems)) {
-          setDraft(obj.menuItems);
-          onSave(obj.menuItems);
-        }
-        if (!done) showToast("☁️");
-      } catch (e) { console.error(e); }
-    }, 0);
-    return () => { done = true; };
-  }, []);
 
   // Cloud handlers (edit screen)
   const handleCloudSaveEdit = async () => {
@@ -624,7 +616,7 @@ const [tab, setTab] = useState<Group>(() => ( (items[0]?.group ?? 1) as Group ))
     return { remapped, newTab };
   };
 
-  const currentGroups = () => Array.from(new Set(safeDraft.map(d => d.group))).sort((a,b)=>a-b) as Group[];
+  const currentGroups = () => Array.from(new Set(draft.map(d => d.group))).sort((a,b)=>a-b) as Group[];
   const groupList = (g: Group) => draft.filter(d => d.group === g);
   const setGroupList = (g: Group, list: MenuItem[]) => {
     const others = draft.filter(d => d.group !== g);
@@ -688,7 +680,7 @@ const [tab, setTab] = useState<Group>(() => ( (items[0]?.group ?? 1) as Group ))
         </div>
         <div className="w-full grid grid-cols-3 items-center mt-2">
   <div className="flex items-center gap-2 justify-start">
-    <button onClick={handleBackWithCloudSave} className="h-9 min-h-[36px] px-4 whitespace-nowrap rounded-lg border border-green-300 bg-white/80 hover:bg-white shadow-sm text-base md:text-lg">← 戻る</button>
+    <button onClick={onCancel} className="h-9 min-h-[36px] px-4 whitespace-nowrap rounded-lg border border-green-300 bg-white/80 hover:bg-white shadow-sm text-base md:text-lg">← 戻る</button>
     <button onClick={handleLocalSaveEdit} className="h-9 min-h-[36px] px-4 whitespace-nowrap rounded-lg border border-green-300 bg-white hover:bg-green-50 shadow-sm text-base md:text-lg">保存📁</button>
   </div>
   <div className="flex justify-center">{/* 中央は空（センタリング解除） */}</div>
