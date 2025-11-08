@@ -14,7 +14,7 @@ async function decryptBlob(blob){const buf=new Uint8Array(await blob.arrayBuffer
 async function cloudSave(payload){const blob=await encryptJson(payload);const {error}=await supabase.storage.from("menus").upload(CLOUD_OBJECT_PATH,blob,{upsert:true,contentType:"application/octet-stream"});if(error)throw error;}
 async function cloudLoad(){const {data,error}=await supabase.storage.from("menus").download(CLOUD_OBJECT_PATH);if(error)throw error;return await decryptBlob(data);} 
 // ---- Versioning ----
-const FIXED_VERSION_TEXT = "v2.1.136";
+const FIXED_VERSION_TEXT = "v2.1.137";
 const VERSION_PREFIX = "2.1"; // major.minor
 const STORAGE_VERSION_PATCH = "menu.version.patch";
 function loadVersionPatch(): number {
@@ -352,16 +352,6 @@ export default function App() {
   useEffect(() => { saveMenuItems(menuItems); }, [menuItems]);
   const handleCloudSave = async () => {try{const payload={menuItems,rows,schemaVersion:1};await cloudSave(payload);alert("クラウドに保存しました");}catch(e){console.error(e);alert("保存に失敗しました\n"+(e?.message??""));}};
   const handleCloudLoad = async () => {try{const obj=await cloudLoad();if(!obj)throw new Error("No Data");if(Array.isArray(obj.menuItems))setMenuItems(obj.menuItems);if(Array.isArray(obj.rows))setRows(obj.rows);showToast("クラウドから読み込みました");}catch(e){console.error(e);alert("読み込みに失敗しました\n"+(e?.message??""));}};
-
-
-
-  // --- standard-screen ephemeral overlay for cloud ---
-  const [cloudOverlay, setCloudOverlay] = useState(false);
-  const showCloudOverlay = (ms: number = 2000) => {
-    setCloudOverlay(true);
-    setTimeout(() => setCloudOverlay(false), ms);
-  };
-
   // ---- Version auto-increment (robust) ----
   const prevSnapRef = React.useRef<string | null>(null);
   useEffect(() => {
@@ -463,16 +453,7 @@ export default function App() {
             </button>
           </div>
         </div>
-
-        {cloudOverlay && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center pointer-events-none">
-            <div className="pointer-events-auto px-6 py-4 rounded-2xl shadow-lg bg-black/80 text-white text-2xl md:text-3xl">
-              ☁️
-            </div>
-          </div>
-        )}
-
-      </header>
+</header>
 
       <main className="w-full max-w-3xl mx-auto px-4 mt-4 flex-1 pb-[calc(env(safe-area-inset-bottom,0px)+7rem)]" data-capture-root="true">
         <div className="space-y-3">
@@ -530,14 +511,7 @@ export default function App() {
                 <button
                   type="button"
                   className={"px-4 py-1 rounded-md border shadow-sm text-base " + (pdfPwd.length >= 4 && !pdfBusy ? "border-green-500 bg-green-600 text-white hover:brightness-110" : "border-gray-300 bg-gray-200 text-gray-500 cursor-not-allowed")}
-                  onClick={async () => {
-                    if (pdfPwd.length < 4 || pdfBusy) return;
-                    const pwd = pdfPwd;
-                    setPdfOpen(false);
-                    setPdfPwd("");
-                    await new Promise(r => setTimeout(r, 0));
-                    await makePasswordPdf(pwd);
-                  }}
+                  onClick={() => setEditing(true)}
                   disabled={pdfPwd.length < 4 || pdfBusy}
                 >
                   {pdfBusy ? "作成中..." : "OK"}
@@ -576,6 +550,22 @@ function MenuEditor({
     setToastMsg(msg);
     setTimeout(() => setToastMsg(null), 3000);
   };
+
+  // 初回マウント時：クラウド読込→ローカル保存→トースト表示
+  useEffect(() => {
+    (async () => {
+      try {
+        const obj: any = await cloudLoad();
+        if (Array.isArray(obj?.menuItems)) {
+          setDraft(obj.menuItems);
+          onSave(obj.menuItems); // 親（標準画面側）も更新＝ローカル保存
+        }
+        showToast("☁️");
+      } catch (e) {
+        console.error(e);
+      }
+    })();
+  }, []);
 const [draft, setDraft] = useState<MenuItem[]>(() => items.map(i => ({ ...i })));
 
   // Cloud handlers (edit screen)
