@@ -14,7 +14,7 @@ async function decryptBlob(blob){const buf=new Uint8Array(await blob.arrayBuffer
 async function cloudSave(payload){const blob=await encryptJson(payload);const {error}=await supabase.storage.from("menus").upload(CLOUD_OBJECT_PATH,blob,{upsert:true,contentType:"application/octet-stream"});if(error)throw error;}
 async function cloudLoad(){const {data,error}=await supabase.storage.from("menus").download(CLOUD_OBJECT_PATH);if(error)throw error;return await decryptBlob(data);} 
 // ---- Versioning ----
-const FIXED_VERSION_TEXT = "v2.1.118";
+const FIXED_VERSION_TEXT = "v2.1.119";
 const VERSION_PREFIX = "2.1"; // major.minor
 const STORAGE_VERSION_PATCH = "menu.version.patch";
 function loadVersionPatch(): number {
@@ -69,7 +69,7 @@ function Dropdown<T extends number>({
   onChange,
   labelFor }: {
   value: T;
-  options: { value: T; label: string }[];
+  options: { value: T; label: string; right?: string | number }[];
   onChange: (v: T) => void;
   labelFor?: string;
 }) {
@@ -110,9 +110,11 @@ function Dropdown<T extends number>({
                   role="option"
                   aria-selected={opt.value === value}
                   onClick={() => { onChange(opt.value); setOpen(false); }}
-                  className={"w-full text-left px-4 py-4 md:py-5 rounded-lg " + (opt.value===value ? "bg-emerald-100" : "hover:bg-gray-50")}
-                >
+                  className={"w-full px-4 py-4 md:py-5 rounded-lg flex items-center justify-between gap-4 " + (opt.value===value ? "bg-emerald-100" : "hover:bg-gray-50")}>
                   <span className="inline-block align-middle whitespace-normal break-words">{opt.label}</span>
+                  {typeof opt.right !== "undefined" && (
+                    <span className="select-none text-3xl md:text-4xl tabular-nums text-green-600">{String(opt.right)}</span>
+                  )}
                 </button>
               ))}
             </div>
@@ -525,7 +527,7 @@ export default function App() {
               <div key={i} className="rounded-xl border border-green-200 bg-white/70 shadow-sm flex items-center justify-between pl-2 pr-4 py-2">
                 <Dropdown
                   value={r.index as number}
-                  options={list.map((it, idx) => ({ value: idx as number, label: it.label }))}
+                  options={list.map((it, idx) => ({ value: idx as number, label: it.label, right: (it?.value ?? 0) }))}
                   onChange={(index) => {
                     setRows(prev => {
                       const next = [...prev];
