@@ -14,7 +14,7 @@ async function decryptBlob(blob){const buf=new Uint8Array(await blob.arrayBuffer
 async function cloudSave(payload){const blob=await encryptJson(payload);const {error}=await supabase.storage.from("menus").upload(CLOUD_OBJECT_PATH,blob,{upsert:true,contentType:"application/octet-stream"});if(error)throw error;}
 async function cloudLoad(){const {data,error}=await supabase.storage.from("menus").download(CLOUD_OBJECT_PATH);if(error)throw error;return await decryptBlob(data);} 
 // ---- Versioning ----
-const FIXED_VERSION_TEXT = "v2.1.139";
+const FIXED_VERSION_TEXT = "v2.1.140";
 const VERSION_PREFIX = "2.1"; // major.minor
 const STORAGE_VERSION_PATCH = "menu.version.patch";
 function loadVersionPatch(): number {
@@ -557,7 +557,7 @@ const [draft, setDraft] = useState<MenuItem[]>(() => items.map(i => ({ ...i })))
     let done = false;
     setTimeout(async () => {
       try {
-        const obj: any = await cloudLoad();
+        const obj: any = await cloudLoad().catch(e => { console.error(e); return null; });
         if (!done && Array.isArray(obj?.menuItems)) {
           setDraft(obj.menuItems);
           onSave(obj.menuItems);
@@ -624,7 +624,7 @@ const [tab, setTab] = useState<Group>(() => ( (items[0]?.group ?? 1) as Group ))
     return { remapped, newTab };
   };
 
-  const currentGroups = () => Array.from(new Set(draft.map(d => d.group))).sort((a,b)=>a-b) as Group[];
+  const currentGroups = () => Array.from(new Set(safeDraft.map(d => d.group))).sort((a,b)=>a-b) as Group[];
   const groupList = (g: Group) => draft.filter(d => d.group === g);
   const setGroupList = (g: Group, list: MenuItem[]) => {
     const others = draft.filter(d => d.group !== g);
