@@ -7,14 +7,36 @@ import { createClient } from "@supabase/supabase-js";
 // ---- Cloud Save (Supabase) ----
 const SHARED_KEY_B64 = "pAHI97yfr67P9Gui4oPyApIyjnk/rDCqqRKo5VWiMKY="; // 32byte Base64
 const CLOUD_OBJECT_PATH = "siCNDuBOVj76ZTKScao8.menu.enc";
-const supabase = createClient(import.meta.env.VITE_SUPABASE_URL, import.meta.env.VITE_SUPABASE_ANON_KEY);
+// NOTE: Vercel等で環境変数が未設定の場合、createClient が例外を投げて
+// 画面が真っ白になることがあるため、未設定時はクラウド機能を無効化して起動を継続する。
+let supabase: ReturnType<typeof createClient> | null = null;
+try {
+  const url = import.meta.env.VITE_SUPABASE_URL as string | undefined;
+  const key = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined;
+  if (typeof url === "string" && url.length > 0 && typeof key === "string" && key.length > 0) {
+    supabase = createClient(url, key);
+  }
+} catch (e) {
+  console.warn("Supabase init failed; cloud features disabled", e);
+  supabase = null;
+}
 async function getSharedCryptoKey(){const raw=Uint8Array.from(atob(SHARED_KEY_B64),c=>c.charCodeAt(0));return crypto.subtle.importKey("raw",raw,"AES-GCM",false,["encrypt","decrypt"]);}
 async function encryptJson(obj){const key=await getSharedCryptoKey();const iv=crypto.getRandomValues(new Uint8Array(12));const data=new TextEncoder().encode(JSON.stringify(obj));const enc=await crypto.subtle.encrypt({name:"AES-GCM",iv},key,data);const header=new Uint8Array(16);header.set([0x4E,0x4D,0x32,1]);header.set(iv,4);return new Blob([header,new Uint8Array(enc)],{type:"application/octet-stream"});}
 async function decryptBlob(blob){const buf=new Uint8Array(await blob.arrayBuffer());if(!(buf[0]===0x4E&&buf[1]===0x4D&&buf[2]===0x32&&buf[3]===1))throw new Error("invalid header");const iv=buf.slice(4,16);const body=buf.slice(16);const key=await getSharedCryptoKey();const dec=await crypto.subtle.decrypt({name:"AES-GCM",iv},key,body);return JSON.parse(new TextDecoder().decode(new Uint8Array(dec)));}
-async function cloudSave(payload){const blob=await encryptJson(payload);const {error}=await supabase.storage.from("menus").upload(CLOUD_OBJECT_PATH,blob,{upsert:true,contentType:"application/octet-stream"});if(error)throw error;}
-async function cloudLoad(){const {data,error}=await supabase.storage.from("menus").download(CLOUD_OBJECT_PATH);if(error)throw error;return await decryptBlob(data);} 
+async function cloudSave(payload){
+  if (!supabase) throw new Error("クラウド保存が未設定です（VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY）");
+  const blob=await encryptJson(payload);
+  const {error}=await supabase.storage.from("menus").upload(CLOUD_OBJECT_PATH,blob,{upsert:true,contentType:"application/octet-stream"});
+  if(error)throw error;
+}
+async function cloudLoad(){
+  if (!supabase) throw new Error("クラウド読込が未設定です（VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY）");
+  const {data,error}=await supabase.storage.from("menus").download(CLOUD_OBJECT_PATH);
+  if(error)throw error;
+  return await decryptBlob(data);
+} 
 // ---- Versioning ----
-const FIXED_VERSION_TEXT = "v2.1.119";
+const FIXED_VERSION_TEXT = "v2.1.120";
 const VERSION_PREFIX = "2.1"; // major.minor
 const STORAGE_VERSION_PATCH = "menu.version.patch";
 function loadVersionPatch(): number {
