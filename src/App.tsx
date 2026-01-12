@@ -36,7 +36,7 @@ async function cloudLoad(){
   return await decryptBlob(data);
 } 
 // ---- Versioning ----
-const FIXED_VERSION_TEXT = "v2.1.121";
+const FIXED_VERSION_TEXT = "v2.1.122";
 const VERSION_PREFIX = "2.1"; // major.minor
 const STORAGE_VERSION_PATCH = "menu.version.patch";
 function loadVersionPatch(): number {
@@ -389,7 +389,7 @@ export default function App() {
   useEffect(() => {
     (async () => {
       try {
-        const obj:any = window.dispatchEvent(new CustomEvent("cloud-indicator",{detail:"down"})); await cloudLoad();
+        window.dispatchEvent(new CustomEvent("cloud-indicator",{detail:"down"})); const obj:any = await cloudLoad();
         if (obj) {
           if (Array.isArray(obj.menuItems)) { setMenuItems(obj.menuItems); try { saveMenuItems(obj.menuItems); } catch {} }
           if (Array.isArray(obj.rows)) { setRows(obj.rows); try { saveRows(obj.rows); } catch {} }
@@ -425,7 +425,7 @@ export default function App() {
   }, [menuItems, rows]);
 
   const handleCloudSave = async () => {try{const payload={menuItems,rows,schemaVersion:1};window.dispatchEvent(new CustomEvent("cloud-indicator",{detail:"up"})); await cloudSave(payload);alert("クラウドに保存しました");}catch(e){console.error(e);alert("保存に失敗しました\n"+(e?.message??""));}};
-  const handleCloudLoad = async () => {try{const obj=window.dispatchEvent(new CustomEvent("cloud-indicator",{detail:"down"})); await cloudLoad();if(!obj)throw new Error("No Data");if(Array.isArray(obj.menuItems))setMenuItems(obj.menuItems);if(Array.isArray(obj.rows))setRows(obj.rows);showToast("クラウドから読み込みました");}catch(e){console.error(e);alert("読み込みに失敗しました\n"+(e?.message??""));}};
+  const handleCloudLoad = async () => {try{window.dispatchEvent(new CustomEvent("cloud-indicator",{detail:"down"})); const obj=await cloudLoad();if(!obj)throw new Error("No Data");if(Array.isArray(obj.menuItems))setMenuItems(obj.menuItems);if(Array.isArray(obj.rows))setRows(obj.rows);showToast("クラウドから読み込みました");}catch(e){console.error(e);alert("読み込みに失敗しました\n"+(e?.message??""));}};
 
 
   // ---- Version auto-increment (robust) ----
@@ -483,7 +483,7 @@ export default function App() {
 
   const handleEdit = async () => {
   try {
-    const obj:any = window.dispatchEvent(new CustomEvent("cloud-indicator",{detail:"down"})); await cloudLoad();
+    window.dispatchEvent(new CustomEvent("cloud-indicator",{detail:"down"})); const obj:any = await cloudLoad();
     if (obj) {
       if (Array.isArray(obj.menuItems)) { setMenuItems(obj.menuItems); try { saveMenuItems(obj.menuItems); } catch {} }
       if (Array.isArray(obj.rows)) { setRows(obj.rows); try { saveRows(obj.rows); } catch {} }
@@ -697,7 +697,7 @@ const [draft, setDraft] = useState<MenuItem[]>(() => items.map(i => ({ ...i })))
   };
   const handleCloudLoadEdit = async () => {
     try {
-      const obj:any = window.dispatchEvent(new CustomEvent("cloud-indicator",{detail:"down"})); await cloudLoad();
+      window.dispatchEvent(new CustomEvent("cloud-indicator",{detail:"down"})); const obj:any = await cloudLoad();
       if (Array.isArray(obj?.menuItems)) {
         setDraft(obj.menuItems);
         onSave(obj.menuItems); // 親状態も更新し通常画面に即反映（ローカル保存も実施）
