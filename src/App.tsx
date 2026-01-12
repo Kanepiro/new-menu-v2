@@ -36,7 +36,7 @@ async function cloudLoad(){
   return await decryptBlob(data);
 } 
 // ---- Versioning ----
-const FIXED_VERSION_TEXT = "v2.1.120";
+const FIXED_VERSION_TEXT = "v2.1.121";
 const VERSION_PREFIX = "2.1"; // major.minor
 const STORAGE_VERSION_PATCH = "menu.version.patch";
 function loadVersionPatch(): number {
